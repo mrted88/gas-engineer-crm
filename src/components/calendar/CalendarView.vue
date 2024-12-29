@@ -392,6 +392,12 @@ const currentMonthYear = computed(() => {
   return format(currentDate.value, 'MMMM yyyy')
 })
 
+const getEventsByDate = computed(() => (date: Date) => {
+  return eventsStore.events.filter(event => 
+    isSameDay(new Date(event.date), date)
+  )
+})
+
 const calendarDays = computed(() => {
   const start = startOfWeek(startOfMonth(currentDate.value))
   const end = endOfWeek(endOfMonth(currentDate.value))
@@ -490,21 +496,66 @@ function formatHour(hour: number) {
 }
 
 function getEventsForDate(date: Date) {
-  return eventsStore.getEventsByDate(date)
+  const events = eventsStore.events.filter(event => 
+    isSameDay(new Date(event.date), date)
+  )
+  console.log('Getting events for date:', date, 'Found:', events)
+  return events
 }
 
 function getEventsForDateAndHour(date: Date, hour: number) {
   return getEventsForDate(date).filter(event => {
-    const eventHour = parseInt(event.startTime.split(':')[0])
-    return eventHour === hour
+    try {
+      if (!event.startTime) return false
+      const eventHour = parseInt(event.startTime.split(':')[0])
+      return !isNaN(eventHour) && eventHour === hour
+    } catch (error) {
+      console.error('Error filtering event:', error)
+      return false
+    }
   })
 }
 
-function getEventStyles(event: CalendarEvent) {
-  const durationInHours = event.duration / 60
-  return {
-    height: `${durationInHours * 100}%`,
-    backgroundColor: getEventColor(event.status)
+function getEventStyles(event: CalendarEvent): {
+  top: string
+  height: string
+  position: string
+  width: string
+  backgroundColor: string
+} {
+  const startTime = event.time || event.startTime
+  if (!startTime) {
+    return {
+      top: '0%',
+      height: '100%',
+      position: 'absolute',
+      width: '95%',
+      backgroundColor: getEventColor(event.status)
+    }
+  }
+
+  try {
+    const [hours, minutes] = startTime.split(':').map(Number)
+    const startMinutes = (hours * 60) + minutes
+    const top = (startMinutes % 60) / 60 * 100
+    const durationInHours = (event.duration || 60) / 60
+
+    return {
+      top: `${top}%`,
+      height: `${durationInHours * 100}%`,
+      position: 'absolute',
+      width: '95%',
+      backgroundColor: getEventColor(event.status)
+    }
+  } catch (error) {
+    console.error('Error calculating event styles:', error)
+    return {
+      top: '0%',
+      height: '100%',
+      position: 'absolute',
+      width: '95%',
+      backgroundColor: getEventColor(event.status)
+    }
   }
 }
 
@@ -570,16 +621,19 @@ function combineDateAndTime(date: Date, time: string): Date {
 
 async function saveEvent() {
   try {
+    const eventData = {
+      ...newEvent.value,
+      date: combineDateAndTime(newEvent.value.date, newEvent.value.time),
+      startTime: newEvent.value.time, // Should be in "HH:mm" format
+      duration: newEvent.value.duration || 60
+    }
+    console.log('About to save event with data:', eventData)
+
     if (editingEvent.value) {
-      await eventsStore.updateEvent(editingEvent.value.id, {
-        ...newEvent.value,
-        date: combineDateAndTime(newEvent.value.date, newEvent.value.time)
-      })
+      await eventsStore.updateEvent(editingEvent.value.id, eventData)
     } else {
-      await eventsStore.createEvent({
-        ...newEvent.value,
-        date: combineDateAndTime(newEvent.value.date, newEvent.value.time)
-      })
+      const createdEvent = await eventsStore.createEvent(eventData)
+      console.log('Event created:', createdEvent)
     }
     showEventModal.value = false
     await fetchEventsForCurrentView()
@@ -614,7 +668,7 @@ async function updateEventStatus(eventId: string, status: CalendarEvent['status'
   }
 }
 
-async function fetchEventsForCurrentView() {
+async function fetchEventsForCurrentView(): Promise<void> {
   const start = currentView.value === 'month' 
     ? startOfMonth(currentDate.value)
     : startOfWeek(currentDate.value)
@@ -623,20 +677,23 @@ async function fetchEventsForCurrentView() {
     ? endOfMonth(currentDate.value)
     : endOfWeek(currentDate.value)
 
-  await eventsStore.fetchEvents(start, end)
+  await eventsStore.fetchEvents({
+    start: format(start, 'yyyy-MM-dd'),
+    end: format(end, 'yyyy-MM-dd')
+  })
 }
 
 // Lifecycle
 onMounted(async () => {
-  console.log('Component mounting...')
+  console.log('Calendar component mounting...')
   try {
     await Promise.all([
       customersStore.fetchCustomers(),
       fetchEventsForCurrentView()
     ])
-    console.log('After fetch customers:', customersStore.customers)
+    console.log('After fetch - Customers:', customersStore.customers)
   } catch (error) {
-    console.error('Error loading data:', error)
+    console.error('Error in calendar mount:', error)
   }
 })
 </script>

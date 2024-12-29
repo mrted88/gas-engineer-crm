@@ -1,8 +1,10 @@
+// In your types/event.ts file
 export interface CalendarEvent {
   id: string
   title: string
   date: Date
-  startTime: string
+  time: string  // Add this
+  startTime?: string
   duration: number
   customerId: string
   customerName: string

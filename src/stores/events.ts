@@ -1,57 +1,24 @@
+// src/stores/events.ts
+import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import type { CalendarEvent, NewCalendarEvent } from '@/types/event'
 import { api } from '@/services/api'
-import { format, isSameDay } from 'date-fns'
+import type { CalendarEvent } from '@/types/event'
 
 export const useEventsStore = defineStore('events', () => {
-  // State
   const events = ref<CalendarEvent[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
-  const selectedEvent = ref<CalendarEvent | null>(null)
-
-  // Getters
-  const getEventsByDate = computed(() => (date: Date) => {
-    return events.value.filter(event => 
-      isSameDay(new Date(event.date), date)
-    )
-  })
-
-  const getEventsByDateRange = computed(() => (start: Date, end: Date) => {
-    return events.value.filter(event => {
-      const eventDate = new Date(event.date)
-      return eventDate >= start && eventDate <= end
-    })
-  })
-
-  const upcomingEvents = computed(() => {
-    const now = new Date()
-    return events.value
-      .filter(event => new Date(event.date) > now)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(0, 5)
-  })
-
-  const todaysEvents = computed(() => {
-    return events.value
-      .filter(event => isSameDay(new Date(event.date), new Date()))
-      .sort((a, b) => a.startTime.localeCompare(b.startTime))
-  })
 
   // Actions
-  async function fetchEvents(start: Date, end: Date) {
+  async function fetchEvents(params?: { start: string; end: string }) {
     try {
       loading.value = true
       error.value = null
-      const response = await api.events.list({
-        start: format(start, 'yyyy-MM-dd'),
-        end: format(end, 'yyyy-MM-dd')
-      })
-      events.value = response.map(event => ({
-        ...event,
-        date: new Date(event.date)
-      }))
+      console.log('Store: Fetching events with params:', params)
+      const response = await api.events.list(params)
+      console.log('Store: Received events:', response)
+      events.value = response
+      console.log('Store: Updated events array:', events.value)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch events'
       throw err
@@ -60,15 +27,15 @@ export const useEventsStore = defineStore('events', () => {
     }
   }
 
-  async function createEvent(eventData: NewCalendarEvent) {
+  async function createEvent(data: Partial<CalendarEvent>) {
     try {
       loading.value = true
       error.value = null
-      const response = await api.events.create(eventData)
-      events.value.push({
-        ...response,
-        date: new Date(response.date)
-      })
+      console.log('Store: Creating event with data:', data)
+      const response = await api.events.create(data)
+      console.log('Store: Received response:', response)
+      events.value.push(response)
+      console.log('Store: Updated events array:', events.value)
       return response
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to create event'
@@ -78,17 +45,14 @@ export const useEventsStore = defineStore('events', () => {
     }
   }
 
-  async function updateEvent(id: string, eventData: Partial<CalendarEvent>) {
+  async function updateEvent(id: string, data: Partial<CalendarEvent>) {
     try {
       loading.value = true
       error.value = null
-      const response = await api.events.update(id, eventData)
+      const response = await api.events.update(id, data)
       const index = events.value.findIndex(e => e.id === id)
       if (index !== -1) {
-        events.value[index] = {
-          ...response,
-          date: new Date(response.date)
-        }
+        events.value[index] = response
       }
       return response
     } catch (err) {
@@ -105,9 +69,6 @@ export const useEventsStore = defineStore('events', () => {
       error.value = null
       await api.events.delete(id)
       events.value = events.value.filter(e => e.id !== id)
-      if (selectedEvent.value?.id === id) {
-        selectedEvent.value = null
-      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to delete event'
       throw err
@@ -116,17 +77,14 @@ export const useEventsStore = defineStore('events', () => {
     }
   }
 
-  async function updateEventStatus(id: string, status: CalendarEvent['status']) {
+  async function updateEventStatus(id: string, status: 'scheduled' | 'completed' | 'cancelled') {
     try {
       loading.value = true
       error.value = null
       const response = await api.events.updateStatus(id, status)
       const index = events.value.findIndex(e => e.id === id)
       if (index !== -1) {
-        events.value[index] = {
-          ...response,
-          date: new Date(response.date)
-        }
+        events.value[index] = { ...events.value[index], status: response.status }
       }
       return response
     } catch (err) {
@@ -137,37 +95,14 @@ export const useEventsStore = defineStore('events', () => {
     }
   }
 
-  function selectEvent(event: CalendarEvent | null) {
-    selectedEvent.value = event
-  }
-
-  function resetState() {
-    events.value = []
-    loading.value = false
-    error.value = null
-    selectedEvent.value = null
-  }
-
   return {
-    // State
     events,
     loading,
     error,
-    selectedEvent,
-
-    // Getters
-    getEventsByDate,
-    getEventsByDateRange,
-    upcomingEvents,
-    todaysEvents,
-
-    // Actions
     fetchEvents,
     createEvent,
     updateEvent,
     deleteEvent,
-    updateEventStatus,
-    selectEvent,
-    resetState
+    updateEventStatus
   }
 })
