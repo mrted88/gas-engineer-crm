@@ -27,51 +27,54 @@
     <!-- Calendar Grid -->
     <div class="calendar-grid" :class="currentView">
       <!-- Week View -->
-      <template v-if="currentView === 'week'">
-        <div class="time-column">
-          <div v-for="hour in hours" :key="hour" class="time-slot">
-            {{ formatHour(hour) }}
-          </div>
+<template v-if="currentView === 'week'">
+  <div class="week-view-container">
+    <div class="time-column">
+      <div class="time-header"></div> <!-- Add this empty header cell -->
+      <div v-for="hour in hours" :key="hour" class="time-slot">
+        {{ formatHour(hour) }}
+      </div>
+    </div>
+    <div class="week-content">
+      <div class="week-header">
+        <div 
+          v-for="day in currentWeekDays" 
+          :key="format(day.date, 'yyyy-MM-dd')"
+          class="week-day-header"
+          :class="{ today: isToday(day.date) }"
+        >
+          <span class="day-name">{{ day.dayName }}</span>
+          <span class="day-number">{{ day.dayNumber }}</span>
         </div>
-        <div class="week-grid">
-          <div class="week-header">
-            <div 
-              v-for="day in currentWeekDays" 
-              :key="format(day.date, 'yyyy-MM-dd')"
-              class="week-day-header"
-              :class="{ today: isToday(day.date) }"
-            >
-              <span class="day-name">{{ day.dayName }}</span>
-              <span class="day-number">{{ day.dayNumber }}</span>
-            </div>
-          </div>
-          <div class="week-body">
-            <div 
-              v-for="day in currentWeekDays" 
-              :key="format(day.date, 'yyyy-MM-dd')"
-              class="day-column"
-            >
+      </div>
+      <div class="week-body">
+        <div 
+          v-for="day in currentWeekDays" 
+          :key="format(day.date, 'yyyy-MM-dd')"
+          class="day-column"
+        >
+          <div 
+            v-for="hour in hours" 
+            :key="hour"
+            class="hour-slot"
+            @click="openNewEventModal(day.date, hour)"
+          >
+            <template v-for="event in getEventsForDateAndHour(day.date, hour)" :key="event.id">
               <div 
-                v-for="hour in hours" 
-                :key="hour"
-                class="hour-slot"
-                @click="openNewEventModal(day.date, hour)"
+                class="calendar-event"
+                :class="event.status"
+                :style="getEventStyles(event)"
+                @click.stop="openEventDetails(event)"
               >
-                <template v-for="event in getEventsForDateAndHour(day.date, hour)" :key="event.id">
-                  <div 
-                    class="calendar-event"
-                    :class="event.status"
-                    :style="getEventStyles(event)"
-                    @click.stop="openEventDetails(event)"
-                  >
-                    {{ event.title }}
-                  </div>
-                </template>
+                {{ event.title }}
               </div>
-            </div>
+            </template>
           </div>
         </div>
-      </template>
+      </div>
+    </div>
+  </div>
+</template>
 
       <!-- Month View -->
       <template v-else-if="currentView === 'month'">
@@ -545,6 +548,7 @@ function openEventDetails(event: CalendarEvent) {
 }
 
 function openNewEventModal(date: Date, hour?: number) {
+  console.log('Available customers:', customers.value)  // Add this line here
   editingEvent.value = null
   newEvent.value = {
     title: '',
@@ -624,10 +628,16 @@ async function fetchEventsForCurrentView() {
 
 // Lifecycle
 onMounted(async () => {
-  await Promise.all([
-    customersStore.fetchCustomers(),
-    fetchEventsForCurrentView()
-  ])
+  console.log('Component mounting...')
+  try {
+    await Promise.all([
+      customersStore.fetchCustomers(),
+      fetchEventsForCurrentView()
+    ])
+    console.log('After fetch customers:', customersStore.customers)
+  } catch (error) {
+    console.error('Error loading data:', error)
+  }
 })
 </script>
 
@@ -733,16 +743,25 @@ onMounted(async () => {
 }
 
 /* Week View */
-.week-grid {
-  flex: 1;
+.week-view-container {
   display: flex;
-  flex-direction: column;
+  flex: 1;
   overflow: hidden;
+  height: 100%;
+  background: var(--surface-1);
 }
 
 .time-column {
   width: 60px;
-  padding-top: 50px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border-color);
+  background: var(--surface-1);
+  z-index: 2;
+}
+
+.time-header {
+  height: 50px; /* Match the header height */
+  border-bottom: 1px solid var(--border-color);
 }
 
 .time-slot {
@@ -754,20 +773,29 @@ onMounted(async () => {
   font-size: var(--font-size-sm);
 }
 
+.week-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .week-header {
+  height: 50px;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   border-bottom: 1px solid var(--border-color);
+  background: var(--surface-1);
+  z-index: 1;
 }
 
 .week-day-header {
   padding: var(--space-2);
   text-align: center;
-  border-right: 1px solid var(--border-color);
-}
-
-.week-day-header.today {
-  background: var(--primary-1);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
 }
 
 .week-body {
@@ -775,6 +803,7 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   overflow-y: auto;
+  position: relative;
 }
 
 .day-column {
@@ -785,6 +814,19 @@ onMounted(async () => {
   height: 60px;
   border-bottom: 1px solid var(--border-color);
   position: relative;
+}
+
+/* Calendar Events in Week View */
+.calendar-event {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  overflow: hidden;
+  cursor: pointer;
+  z-index: 1;
 }
 
 /* Day View */
