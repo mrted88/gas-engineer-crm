@@ -1,9 +1,10 @@
 // In your types/event.ts file
+// src/types/event.ts
 export interface CalendarEvent {
   id: string
   title: string
   date: Date
-  time: string  // Add this
+  time: string  // Changed from optional to required
   startTime?: string
   duration: number
   customerId: string
@@ -17,7 +18,7 @@ export interface CalendarEvent {
 export interface NewCalendarEvent {
   title: string
   date: Date
-  time: string // Format: "HH:mm"
+  time: string  // Changed from optional to required
   duration: number
   customerId: string
   notes?: string

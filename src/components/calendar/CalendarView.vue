@@ -355,6 +355,7 @@ import {
   endOfMonth as getEndOfMonth,
   formatDistance
 } from 'date-fns'
+import type { CSSProperties } from 'vue'
 import Datepicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 import Modal from '@/components/Modal.vue'
@@ -372,10 +373,10 @@ const currentDate = ref(new Date())
 const currentView = ref<'month' | 'week' | 'day' | 'agenda'>('month')
 const showEventModal = ref(false)
 const editingEvent = ref<CalendarEvent | null>(null)
-const newEvent = ref<NewCalendarEvent>({
+  const newEvent = ref<NewCalendarEvent>({
   title: '',
   date: new Date(),
-  time: '09:00',
+  time: '',  // Initialize with empty string instead of undefined
   duration: 60,
   customerId: '',
   notes: ''
@@ -516,26 +517,17 @@ function getEventsForDateAndHour(date: Date, hour: number) {
   })
 }
 
-function getEventStyles(event: CalendarEvent): {
-  top: string
-  height: string
-  position: string
-  width: string
-  backgroundColor: string
-} {
-  const startTime = event.time || event.startTime
-  if (!startTime) {
+function getEventStyles(event: CalendarEvent): CSSProperties {
+  if (!event.time) {
     return {
-      top: '0%',
       height: '100%',
-      position: 'absolute',
-      width: '95%',
-      backgroundColor: getEventColor(event.status)
+      backgroundColor: getEventColor(event.status),
+      position: 'relative' as const
     }
   }
 
   try {
-    const [hours, minutes] = startTime.split(':').map(Number)
+    const [hours, minutes] = event.time.split(':').map(Number)
     const startMinutes = (hours * 60) + minutes
     const top = (startMinutes % 60) / 60 * 100
     const durationInHours = (event.duration || 60) / 60
@@ -543,20 +535,32 @@ function getEventStyles(event: CalendarEvent): {
     return {
       top: `${top}%`,
       height: `${durationInHours * 100}%`,
-      position: 'absolute',
+      position: 'absolute' as const,
       width: '95%',
       backgroundColor: getEventColor(event.status)
     }
   } catch (error) {
     console.error('Error calculating event styles:', error)
     return {
-      top: '0%',
       height: '100%',
-      position: 'absolute',
-      width: '95%',
-      backgroundColor: getEventColor(event.status)
+      backgroundColor: getEventColor(event.status),
+      position: 'relative' as const
     }
   }
+}
+
+function getEventsForDate(date: Date): CalendarEvent[] {
+  return eventsStore.events.filter(event => 
+    isSameDay(new Date(event.date), date)
+  )
+}
+
+function getEventsForDateAndHour(date: Date, hour: number): CalendarEvent[] {
+  return getEventsForDate(date).filter(event => {
+    if (!event.time) return false
+    const eventHour = parseInt(event.time.split(':')[0])
+    return eventHour === hour
+  })
 }
 
 function getEventColor(status: CalendarEvent['status']) {
