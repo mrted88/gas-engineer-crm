@@ -59,14 +59,18 @@
             class="hour-slot"
             @click="openNewEventModal(day.date, hour)"
           >
-            <template v-for="event in getEventsForDateAndHour(day.date, hour)" :key="event.id">
+          <template v-for="event in getEventsForDateAndHour(day.date, hour)" :key="event.id">
               <div 
                 class="calendar-event"
                 :class="event.status"
                 :style="getEventStyles(event)"
                 @click.stop="openEventDetails(event)"
               >
-                {{ event.title }}
+                <div class="event-time">
+                  {{ event.time ? format(parseISO(event.time), 'h:mm a') : '' }}
+                </div>
+                <div class="event-title">{{ event.title }}</div>
+                <div class="event-customer">{{ getCustomerName(event.customerId) }}</div>
               </div>
             </template>
           </div>
@@ -101,7 +105,11 @@
                 :class="event.status"
                 @click.stop="openEventDetails(event)"
               >
-                {{ event.title }}
+                <div class="event-time">
+                  {{ event.time ? format(parseISO(event.time), 'h:mm a') : '' }}
+                </div>
+                <div class="event-title">{{ event.title }}</div>
+                <div class="event-customer">{{ getCustomerName(event.customerId) }}</div>
               </div>
             </div>
           </div>
