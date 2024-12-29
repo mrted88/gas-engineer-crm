@@ -1,0 +1,51 @@
+{
+  "name": "openbook-crm",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "run-p type-check \"build-only {@}\" --",
+    "preview": "vite preview",
+    "test:unit": "vitest",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --build",
+    "lint": "eslint . --fix",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "@vuepic/vue-datepicker": "^10.0.0",
+    "@vueuse/core": "^12.2.0",
+    "@vueuse/motion": "^2.2.6",
+    "aos": "^2.3.4",
+    "axios": "^1.7.9",
+    "date-fns": "^4.1.0",
+    "gsap": "^3.12.5",
+    "pinia": "^2.3.0",
+    "vue": "^3.4.15",
+    "vue-router": "^4.2.5"
+  },
+  "devDependencies": {
+    "@testing-library/vue": "^8.0.1",
+    "@tsconfig/node18": "^18.2.2",
+    "@types/aos": "^3.0.7",
+    "@types/jsdom": "^21.1.6",
+    "@types/node": "^20.10.5",
+    "@vitejs/plugin-vue": "^5.0.3",
+    "@vitest/eslint-plugin": "^1.0.0",
+    "@vue/eslint-config-prettier": "^9.0.0",
+    "@vue/eslint-config-typescript": "^12.0.0",
+    "@vue/test-utils": "^2.4.3",
+    "@vue/tsconfig": "^0.5.1",
+    "eslint": "^8.56.0",
+    "eslint-plugin-vue": "^9.17.0",
+    "jsdom": "^23.0.1",
+    "npm-run-all2": "^6.0.0",
+    "prettier": "^3.0.3",
+    "typescript": "~5.3.3",
+    "vite": "^5.0.10",
+    "vite-plugin-vue-devtools": "^7.6.8",
+    "vitest": "^1.0.4",
+    "vue-tsc": "^2.2.0"
+  }
+}
