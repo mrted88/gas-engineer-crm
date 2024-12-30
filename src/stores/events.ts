@@ -27,15 +27,20 @@ export const useEventsStore = defineStore('events', () => {
     }
   }
 
-  async function createEvent(data: Partial<CalendarEvent>) {
+  async function createEvent(data: Omit<CalendarEvent, 'id'>) {
     try {
       loading.value = true
       error.value = null
+      
+      // Validate required fields
+      if (!data.title || !data.date) {
+        throw new Error('Missing required fields')
+      }
+      
       console.log('Store: Creating event with data:', data)
       const response = await api.events.create(data)
       console.log('Store: Received response:', response)
-      events.value.push(response)
-      console.log('Store: Updated events array:', events.value)
+      events.value = [...events.value, response]
       return response
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to create event'

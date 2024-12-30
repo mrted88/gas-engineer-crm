@@ -27,61 +27,59 @@
     <!-- Calendar Grid -->
     <div class="calendar-grid" :class="currentView">
       <!-- Week View -->
-<template v-if="currentView === 'week'">
-  <div class="week-view-container">
-    <div class="time-column">
-      <div class="time-header"></div> <!-- Add this empty header cell -->
-      <div v-for="hour in hours" :key="hour" class="time-slot">
-        {{ formatHour(hour) }}
-      </div>
-    </div>
-    <div class="week-content">
-      <div class="week-header">
-        <div 
-          v-for="day in currentWeekDays" 
-          :key="format(day.date, 'yyyy-MM-dd')"
-          class="week-day-header"
-          :class="{ today: isToday(day.date) }"
-        >
-          <span class="day-name">{{ day.dayName }}</span>
-          <span class="day-number">{{ day.dayNumber }}</span>
-        </div>
-      </div>
-      <div class="week-body">
-        <div 
-          v-for="day in currentWeekDays" 
-          :key="format(day.date, 'yyyy-MM-dd')"
-          class="day-column"
-        >
-          <div 
-            v-for="hour in hours" 
-            :key="hour"
-            class="hour-slot"
-            @click="openNewEventModal(day.date, hour)"
-          >
-          <template v-for="event in getEventsForDateAndHour(day.date, hour)" :key="event.id">
+      <template v-if="currentView === 'week'">
+        <div class="week-view-container">
+          <div class="time-column">
+            <div class="time-header"></div>
+            <div v-for="hour in hours" :key="hour" class="time-slot">
+              {{ formatHour(hour) }}
+            </div>
+          </div>
+          <div class="week-content">
+            <div class="week-header">
               <div 
-                class="calendar-event"
-                :class="event.status"
-                :style="getEventStyles(event)"
-                @click.stop="openEventDetails(event)"
+                v-for="day in currentWeekDays" 
+                :key="format(day.date, 'yyyy-MM-dd')"
+                class="week-day-header"
+                :class="{ today: isToday(day.date) }"
               >
-                <div class="event-time">
-                  {{ event.time ? format(parseISO(event.time), 'h:mm a') : '' }}
-                </div>
-                <div class="event-title">{{ event.title }}</div>
-                <div class="event-customer">{{ getCustomerName(event.customerId) }}</div>
+                <span class="day-name">{{ day.dayName }}</span>
+                <span class="day-number">{{ day.dayNumber }}</span>
               </div>
-            </template>
+            </div>
+            <div class="week-body">
+              <div 
+                v-for="day in currentWeekDays" 
+                :key="format(day.date, 'yyyy-MM-dd')"
+                class="day-column"
+              >
+                <div 
+                  v-for="hour in hours" 
+                  :key="hour"
+                  class="hour-slot"
+                  @click="openNewEventModal(day.date, hour)"
+                >
+                <template v-for="event in getEventsForDateAndHour(day.date, hour)" :key="event.id">
+                  <div 
+                    class="calendar-event"
+                    :class="event.status"
+                    :style="getEventStyles(event)"
+                    @click.stop="openEventDetails(event)"
+                 >
+                    <div class="event-time">{{ formatEventTime(event.startTime || event.time) }}</div>
+                    <div class="event-title">{{ event.title }}</div>
+                    <div class="event-customer">{{ getCustomerName(event.customerId) }}</div>
+                   </div>
+                 </template>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
-</template>
+      </template>
 
-      <!-- Month View -->
-      <template v-else-if="currentView === 'month'">
+            <!-- Month View -->
+            <template v-else-if="currentView === 'month'">
         <div class="weekdays">
           <div v-for="day in weekDays" :key="day">{{ day }}</div>
         </div>
@@ -147,7 +145,9 @@
                     :style="getEventStyles(event)"
                     @click.stop="openEventDetails(event)"
                   >
-                    <div class="event-time">{{ format(parseISO(event.startTime), 'h:mm a') }}</div>
+                    <div class="event-time">
+                      {{ event.time ? format(parseISO(event.time), 'h:mm a') : '' }}
+                    </div>
                     <div class="event-title">{{ event.title }}</div>
                     <div class="event-customer">{{ getCustomerName(event.customerId) }}</div>
                   </div>
@@ -158,8 +158,8 @@
         </div>
       </template>
 
-      <!-- Agenda View -->
-      <template v-else-if="currentView === 'agenda'">
+            <!-- Agenda View -->
+            <template v-else-if="currentView === 'agenda'">
         <div class="agenda-view">
           <div class="agenda-filters">
             <select v-model="agendaFilter">
@@ -187,7 +187,7 @@
                   @click="openEventDetails(event)"
                 >
                   <div class="event-time">
-                    {{ format(parseISO(event.startTime), 'h:mm a') }}
+                    {{ event.time ? format(parseISO(event.time), 'h:mm a') : '' }}
                     <span class="event-duration">
                       ({{ formatDuration(event.duration) }})
                     </span>
@@ -381,10 +381,10 @@ const currentDate = ref(new Date())
 const currentView = ref<'month' | 'week' | 'day' | 'agenda'>('month')
 const showEventModal = ref(false)
 const editingEvent = ref<CalendarEvent | null>(null)
-  const newEvent = ref<NewCalendarEvent>({
+const newEvent = ref<NewCalendarEvent>({
   title: '',
   date: new Date(),
-  time: '',  // Initialize with empty string instead of undefined
+  time: '',
   duration: 60,
   customerId: '',
   notes: ''
@@ -399,12 +399,6 @@ const dateFormat = 'dd/MM/yyyy'
 // Computed Properties
 const currentMonthYear = computed(() => {
   return format(currentDate.value, 'MMMM yyyy')
-})
-
-const getEventsByDate = computed(() => (date: Date) => {
-  return eventsStore.events.filter(event => 
-    isSameDay(new Date(event.date), date)
-  )
 })
 
 const calendarDays = computed(() => {
@@ -485,7 +479,7 @@ const groupedAgendaEvents = computed(() => {
   return grouped
 })
 
-// Methods
+// Calendar Utility Functions
 function previousMonth() {
   currentDate.value = subMonths(currentDate.value, 1)
   fetchEventsForCurrentView()
@@ -504,29 +498,9 @@ function formatHour(hour: number) {
   return format(addHours(startOfDay(new Date()), hour), 'h a')
 }
 
-function getEventsForDate(date: Date) {
-  const events = eventsStore.events.filter(event => 
-    isSameDay(new Date(event.date), date)
-  )
-  console.log('Getting events for date:', date, 'Found:', events)
-  return events
-}
-
-function getEventsForDateAndHour(date: Date, hour: number) {
-  return getEventsForDate(date).filter(event => {
-    try {
-      if (!event.startTime) return false
-      const eventHour = parseInt(event.startTime.split(':')[0])
-      return !isNaN(eventHour) && eventHour === hour
-    } catch (error) {
-      console.error('Error filtering event:', error)
-      return false
-    }
-  })
-}
-
 function getEventStyles(event: CalendarEvent): CSSProperties {
-  if (!event.time) {
+  const time = event.startTime || event.time
+  if (!time) {
     return {
       height: '100%',
       backgroundColor: getEventColor(event.status),
@@ -535,7 +509,9 @@ function getEventStyles(event: CalendarEvent): CSSProperties {
   }
 
   try {
-    const [hours, minutes] = event.time.split(':').map(Number)
+    const [hours, minutes] = time.split(':').map(Number)
+    if (isNaN(hours) || isNaN(minutes)) throw new Error('Invalid time format')
+    
     const startMinutes = (hours * 60) + minutes
     const top = (startMinutes % 60) / 60 * 100
     const durationInHours = (event.duration || 60) / 60
@@ -557,6 +533,7 @@ function getEventStyles(event: CalendarEvent): CSSProperties {
   }
 }
 
+// Event Handling Functions
 function getEventsForDate(date: Date): CalendarEvent[] {
   return eventsStore.events.filter(event => 
     isSameDay(new Date(event.date), date)
@@ -565,10 +542,30 @@ function getEventsForDate(date: Date): CalendarEvent[] {
 
 function getEventsForDateAndHour(date: Date, hour: number): CalendarEvent[] {
   return getEventsForDate(date).filter(event => {
-    if (!event.time) return false
-    const eventHour = parseInt(event.time.split(':')[0])
-    return eventHour === hour
+    if (!event.time && !event.startTime) return false
+    try {
+      const timeStr = event.startTime || event.time
+      const [eventHour] = timeStr.split(':').map(Number)
+      return !isNaN(eventHour) && eventHour === hour
+    } catch (error) {
+      console.error('Error parsing event time:', error)
+      return false
+    }
   })
+}
+
+// Add this helper function
+function formatEventTime(time: string | undefined): string {
+  if (!time) return ''
+  try {
+    const [hours, minutes] = time.split(':')
+    const date = new Date()
+    date.setHours(parseInt(hours), parseInt(minutes))
+    return format(date, 'h:mm a')
+  } catch (error) {
+    console.error('Error formatting time:', error)
+    return ''
+  }
 }
 
 function getEventColor(status: CalendarEvent['status']) {
@@ -602,7 +599,7 @@ function openEventDetails(event: CalendarEvent) {
   newEvent.value = {
     title: event.title,
     date: new Date(event.date),
-    time: event.startTime,
+    time: event.time || event.startTime || '',
     duration: event.duration,
     customerId: event.customerId,
     notes: event.notes || ''
@@ -611,7 +608,6 @@ function openEventDetails(event: CalendarEvent) {
 }
 
 function openNewEventModal(date: Date, hour?: number) {
-  console.log('Available customers:', customers.value)  // Add this line here
   editingEvent.value = null
   newEvent.value = {
     title: '',
@@ -636,7 +632,8 @@ async function saveEvent() {
     const eventData = {
       ...newEvent.value,
       date: combineDateAndTime(newEvent.value.date, newEvent.value.time),
-      startTime: newEvent.value.time, // Should be in "HH:mm" format
+      time: newEvent.value.time,
+      startTime: newEvent.value.time, // Set both time and startTime
       duration: newEvent.value.duration || 60
     }
     console.log('About to save event with data:', eventData)
@@ -695,7 +692,7 @@ async function fetchEventsForCurrentView(): Promise<void> {
   })
 }
 
-// Lifecycle
+// Lifecycle Hooks
 onMounted(async () => {
   console.log('Calendar component mounting...')
   try {
@@ -885,91 +882,6 @@ onMounted(async () => {
   position: relative;
 }
 
-/* Calendar Events in Week View */
-.calendar-event {
-  position: absolute;
-  left: 2px;
-  right: 2px;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  overflow: hidden;
-  cursor: pointer;
-  z-index: 1;
-}
-
-/* Day View */
-.day-view {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-.day-timeline {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.day-header {
-  padding: var(--space-2);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.day-title {
-  font-weight: 600;
-  text-align: center;
-}
-
-.day-title.today {
-  color: var(--primary);
-}
-
-.timeline-events {
-  flex: 1;
-  overflow-y: auto;
-}
-
-/* Agenda View */
-.agenda-view {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.agenda-filters {
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.agenda-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--space-4);
-}
-
-.agenda-group {
-  margin-bottom: var(--space-6);
-}
-
-.agenda-date {
-  font-weight: 600;
-  margin-bottom: var(--space-2);
-  color: var(--text-2);
-}
-
-.agenda-event {
-  display: flex;
-  align-items: center;
-  padding: var(--space-3);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  margin-bottom: var(--space-2);
-  background: var(--surface-2);
-}
-
 /* Calendar Events */
 .calendar-event {
   padding: var(--space-1) var(--space-2);
@@ -1065,6 +977,78 @@ onMounted(async () => {
   display: flex;
   gap: var(--space-2);
   justify-content: flex-end;
+}
+
+/* Day View */
+.day-view {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.day-timeline {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.day-header {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.day-title {
+  font-weight: 600;
+  text-align: center;
+}
+
+.day-title.today {
+  color: var(--primary);
+}
+
+.timeline-events {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Agenda View */
+.agenda-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.agenda-filters {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.agenda-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+.agenda-group {
+  margin-bottom: var(--space-6);
+}
+
+.agenda-date {
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+  color: var(--text-2);
+}
+
+.agenda-event {
+  display: flex;
+  align-items: center;
+  padding: var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-2);
+  background: var(--surface-2);
 }
 
 /* Responsive Styles */
