@@ -16,8 +16,11 @@ export async function authMiddleware(
   next: NavigationGuardNext
 ) {
   const authStore = useAuthStore()
-
+  
   try {
+    // Special handling for event details pages
+    const isEventDetailsPage = to.name === 'job-details' || to.path.includes('/jobs/')
+    
     // Check authentication status if not on public route
     if (!to.meta.public && !authStore.isAuthenticated) {
       await authStore.checkAuth()
@@ -25,9 +28,11 @@ export async function authMiddleware(
 
     // Handle protected routes
     if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+      // Store the intended destination
+      const redirect = isEventDetailsPage ? to.fullPath : undefined
       next({
         name: 'login',
-        query: { redirect: to.fullPath }
+        query: redirect ? { redirect } : undefined
       })
       return
     }
@@ -56,12 +61,17 @@ export async function authMiddleware(
     next()
   } catch (error) {
     console.error('Auth middleware error:', error)
-    next({ 
-      name: 'home',
-      query: { 
-        error: 'system',
-        message: 'An error occurred. Please try again later.'
-      }
-    })
+    if (!authStore.isAuthenticated) {
+      next({ 
+        name: 'login',
+        query: { 
+          redirect: to.fullPath,
+          error: 'auth',
+          message: 'Please log in to continue'
+        }
+      })
+      return
+    }
+    next()
   }
 }

@@ -100,6 +100,7 @@ import { useEventsStore } from '@/stores/events'
 import { useCustomersStore } from '@/stores/customers'
 import type { CalendarEvent } from '@/types/event'
 import type { Customer } from '@/types/customer'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -142,6 +143,7 @@ async function updateStatus(newStatus: 'completed' | 'cancelled') {
   }
 }
 
+// In the loadEventData function, update it to:
 async function loadEventData() {
   const eventId = route.params.id as string
   if (!eventId) {
@@ -153,6 +155,14 @@ async function loadEventData() {
   error.value = null
   
   try {
+    // Get the auth store
+    const authStore = useAuthStore()
+    
+    // Check auth first
+    if (!authStore.isAuthenticated) {
+      await authStore.checkAuth()
+    }
+
     // First try to find the event in the store
     let eventData = eventsStore.events.find(e => e.id === eventId)
     
@@ -160,7 +170,7 @@ async function loadEventData() {
     if (!eventData) {
       eventData = await eventsStore.getEvent(eventId)
     }
-    
+
     if (!eventData) {
       throw new Error('Event not found')
     }
@@ -173,6 +183,14 @@ async function loadEventData() {
     }
   } catch (err) {
     console.error('Error loading event:', err)
+    if (err instanceof Error && err.message.includes('401')) {
+      // Handle authentication error specifically
+      router.push({
+        name: 'login',
+        query: { redirect: route.fullPath }
+      })
+      return
+    }
     error.value = err instanceof Error ? err.message : 'Failed to load event'
   } finally {
     loading.value = false

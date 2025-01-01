@@ -79,18 +79,21 @@ async function handleResponse<T>(response: Response): Promise<T> {
     if (response.status === 401) {
       console.warn('Authentication error detected')
       const token = localStorage.getItem('token')
+      const isJobDetailsPage = window.location.pathname.includes('/jobs/')
       
       // Only redirect if:
       // 1. We're not already on the login page
       // 2. There's no token (actually logged out)
-      // 3. Not viewing event details
+      // 3. Not viewing job details
       if (window.location.pathname !== '/login' && 
           !token && 
-          !window.location.pathname.includes('/events/')) {
+          !isJobDetailsPage) {
         localStorage.setItem('redirectPath', window.location.pathname)
         console.log('Redirecting to login page')
         window.location.href = '/login'
       }
+      
+      throw new Error('Authentication required')
     }
     
     throw new Error(error.message || `API request failed: ${response.statusText}`)
