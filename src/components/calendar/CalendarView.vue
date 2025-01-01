@@ -24,8 +24,21 @@
       </div>
     </div>
 
+    <!-- Loading and Error States -->
+    <div v-if="isLoading" class="loading-state">
+      <div class="spinner"></div>
+      Loading calendar...
+    </div>
+    
+    <div v-else-if="error" class="error-state">
+      <p>{{ error.message }}</p>
+      <button class="btn btn-primary" @click="fetchEventsForCurrentView">
+        Retry
+      </button>
+    </div>
+
     <!-- Calendar Grid -->
-    <div class="calendar-grid" :class="currentView">
+    <div v-else class="calendar-grid" :class="currentView">
       <!-- Week View -->
       <template v-if="currentView === 'week'">
         <div class="week-view-container">
@@ -59,18 +72,18 @@
                   class="hour-slot"
                   @click="openNewEventModal(day.date, hour)"
                 >
-                <template v-for="event in getEventsForDateAndHour(day.date, hour)" :key="event.id">
-                  <div 
-                    class="calendar-event"
-                    :class="event.status"
-                    :style="getEventStyles(event)"
-                    @click.stop="openEventDetails(event)"
-                 >
-                    <div class="event-time">{{ formatEventTime(event.startTime || event.time) }}</div>
-                    <div class="event-title">{{ event.title }}</div>
-                    <div class="event-customer">{{ getCustomerName(event.customerId) }}</div>
-                   </div>
-                 </template>
+                  <template v-for="event in getEventsForDateAndHour(day.date, hour)" :key="event.id">
+                    <div 
+                      class="calendar-event"
+                      :class="event.status"
+                      :style="getEventStyles(event)"
+                      @click.stop="openEventDetails(event)"
+                    >
+                      <div class="event-time">{{ formatEventTime(event.startTime || event.time) }}</div>
+                      <div class="event-title">{{ event.title }}</div>
+                      <div class="event-customer">{{ event.customerName }}</div>
+                    </div>
+                  </template>
                 </div>
               </div>
             </div>
@@ -104,10 +117,10 @@
                 @click.stop="openEventDetails(event)"
               >
                 <div class="event-time">
-                  {{ event.time ? format(parseISO(event.time), 'h:mm a') : '' }}
+                  {{ formatEventTime(event.time) }}
                 </div>
                 <div class="event-title">{{ event.title }}</div>
-                <div class="event-customer">{{ getCustomerName(event.customerId) }}</div>
+                <div class="event-customer">{{ event.customerName }}</div>
               </div>
             </div>
           </div>
@@ -146,10 +159,13 @@
                     @click.stop="openEventDetails(event)"
                   >
                     <div class="event-time">
-                      {{ event.time ? format(parseISO(event.time), 'h:mm a') : '' }}
+                      {{ formatEventTime(event.time) }}
                     </div>
                     <div class="event-title">{{ event.title }}</div>
-                    <div class="event-customer">{{ getCustomerName(event.customerId) }}</div>
+                    <div class="event-customer">{{ event.customerName }}</div>
+                    <div class="event-duration">
+                      {{ formatDuration(event.duration) }}
+                    </div>
                   </div>
                 </template>
               </div>
@@ -158,11 +174,11 @@
         </div>
       </template>
 
-            <!-- Agenda View -->
-            <template v-else-if="currentView === 'agenda'">
+      <!-- Agenda View -->
+      <template v-else-if="currentView === 'agenda'">
         <div class="agenda-view">
           <div class="agenda-filters">
-            <select v-model="agendaFilter">
+            <select v-model="agendaFilter" class="filter-select">
               <option value="upcoming">Upcoming</option>
               <option value="today">Today</option>
               <option value="week">This Week</option>
@@ -170,9 +186,9 @@
             </select>
           </div>
           <div class="agenda-list">
-            <template v-if="filteredAgendaEvents.length">
+            <template v-if="Object.keys(groupedAgendaEvents).length">
               <div 
-                v-for="(group, date) in groupedAgendaEvents" 
+                v-for="(events, date) in groupedAgendaEvents" 
                 :key="date" 
                 class="agenda-group"
               >
@@ -180,34 +196,36 @@
                   {{ format(parseISO(date), 'EEEE, MMMM d') }}
                 </div>
                 <div 
-                  v-for="event in group" 
+                  v-for="event in events" 
                   :key="event.id"
                   class="agenda-event"
                   :class="event.status"
                   @click="openEventDetails(event)"
                 >
                   <div class="event-time">
-                    {{ event.time ? format(parseISO(event.time), 'h:mm a') : '' }}
+                    {{ formatEventTime(event.time) }}
                     <span class="event-duration">
                       ({{ formatDuration(event.duration) }})
                     </span>
                   </div>
                   <div class="event-details">
                     <div class="event-title">{{ event.title }}</div>
-                    <div class="event-customer">{{ getCustomerName(event.customerId) }}</div>
+                    <div class="event-customer">{{ event.customerName }}</div>
                   </div>
                   <div class="event-actions">
                     <button 
                       class="btn btn-icon"
                       @click.stop="updateEventStatus(event.id, 'completed')"
+                      :disabled="event.status === 'completed'"
                     >
-                      ✓
+                      <i class="fas fa-check"></i>
                     </button>
                     <button 
                       class="btn btn-icon"
                       @click.stop="updateEventStatus(event.id, 'cancelled')"
+                      :disabled="event.status === 'cancelled'"
                     >
-                      ×
+                      <i class="fas fa-times"></i>
                     </button>
                   </div>
                 </div>
@@ -221,8 +239,8 @@
       </template>
     </div>
 
-    <!-- Event Modal -->
-    <Modal v-model="showEventModal">
+        <!-- Event Modal -->
+        <Modal v-model="showEventModal">
       <template #header>
         <h3>{{ editingEvent ? 'Edit Appointment' : 'New Appointment' }}</h3>
       </template>
@@ -236,6 +254,7 @@
               v-model="newEvent.title"
               type="text"
               required
+              placeholder="Enter appointment title"
             >
           </div>
 
@@ -246,6 +265,9 @@
                 v-model="newEvent.date"
                 :format="dateFormat"
                 :min-date="new Date()"
+                :enable-time-picker="false"
+                auto-apply
+                required
               />
             </div>
 
@@ -256,6 +278,7 @@
                 v-model="newEvent.time"
                 required
               >
+                <option value="">Select time</option>
                 <option 
                   v-for="time in availableTimes"
                   :key="time.value"
@@ -278,6 +301,7 @@
               <option value="60">1 hour</option>
               <option value="90">1.5 hours</option>
               <option value="120">2 hours</option>
+              <option value="180">3 hours</option>
             </select>
           </div>
 
@@ -305,7 +329,12 @@
               id="eventNotes"
               v-model="newEvent.notes"
               rows="3"
+              placeholder="Add any additional notes here"
             ></textarea>
+          </div>
+
+          <div v-if="formError" class="form-error">
+            {{ formError }}
           </div>
         </form>
       </template>
@@ -315,25 +344,57 @@
           <button 
             v-if="editingEvent"
             class="btn btn-danger"
-            @click="deleteEvent"
+            type="button"
+            @click="confirmDelete"
           >
             Delete
           </button>
           <button 
             class="btn btn-secondary"
-            @click="showEventModal = false"
+            type="button"
+            @click="closeEventModal"
           >
             Cancel
           </button>
           <button 
             class="btn btn-primary"
+            type="submit"
             @click="saveEvent"
+            :disabled="isSubmitting"
           >
-            {{ editingEvent ? 'Update' : 'Create' }}
+            {{ isSubmitting ? 'Saving...' : (editingEvent ? 'Update' : 'Create') }}
           </button>
         </div>
       </template>
     </Modal>
+
+     <!-- Delete Confirmation Modal -->
+ <Modal 
+   v-model="showDeleteModal"
+   title="Confirm Delete"
+>
+   <template #default>
+     <p>Are you sure you want to delete this appointment? This action cannot be undone.</p>
+   </template>
+
+   <template #footer>
+     <div class="modal-actions">
+       <button 
+         class="btn btn-secondary"
+         @click="showDeleteModal = false"
+       >
+         Cancel
+       </button>
+       <button 
+         class="btn btn-danger"
+         @click="handleDelete"
+         :disabled="isDeleting"
+       >
+         {{ isDeleting ? 'Deleting...' : 'Delete' }}
+       </button>
+     </div>
+   </template>
+ </Modal>
   </div>
 </template>
 
@@ -357,6 +418,7 @@ import {
   isSameDay,
   isBefore,
   isAfter,
+  isWithinInterval,
   startOfWeek as getStartOfWeek,
   endOfWeek as getEndOfWeek,
   startOfMonth as getStartOfMonth,
@@ -369,17 +431,28 @@ import '@vuepic/vue-datepicker/dist/main.css'
 import Modal from '@/components/Modal.vue'
 import { useCustomersStore } from '@/stores/customers'
 import { useEventsStore } from '@/stores/events'
-import type { CalendarEvent, NewCalendarEvent } from '@/types/event'
+import type { 
+  CalendarEvent, 
+  NewCalendarEvent, 
+  EventStatus,
+  EventFilters 
+} from '@/types/event'
 
 // Store instances
 const customersStore = useCustomersStore()
 const eventsStore = useEventsStore()
 
 // State
+const error = ref<Error | null>(null)
+const formError = ref<string | null>(null)
+const isLoading = ref(false)
+const isSubmitting = ref(false)
+const isDeleting = ref(false)
 const agendaFilter = ref<'upcoming' | 'today' | 'week' | 'month'>('upcoming')
 const currentDate = ref(new Date())
 const currentView = ref<'month' | 'week' | 'day' | 'agenda'>('month')
 const showEventModal = ref(false)
+const showDeleteModal = ref(false)
 const editingEvent = ref<CalendarEvent | null>(null)
 const newEvent = ref<NewCalendarEvent>({
   title: '',
@@ -433,6 +506,16 @@ const availableTimes = computed(() => {
 
 const customers = computed(() => customersStore.customers)
 
+const filteredEvents = computed(() => {
+  return eventsStore.events.filter(event => {
+    const eventDate = new Date(event.date)
+    return isWithinInterval(eventDate, {
+      start: startOfMonth(currentDate.value),
+      end: endOfMonth(currentDate.value)
+    })
+  })
+})
+
 const filteredAgendaEvents = computed(() => {
   const now = new Date()
   const events = eventsStore.events
@@ -457,11 +540,9 @@ const filteredAgendaEvents = computed(() => {
         return isAfter(eventDate, monthStart) && isBefore(eventDate, monthEnd)
       })
     default: // upcoming
-      return events.filter(event => 
-        isAfter(new Date(event.date), now)
-      ).sort((a, b) => 
-        new Date(a.date).getTime() - new Date(b.date).getTime()
-      )
+      return events
+        .filter(event => isAfter(new Date(event.date), now))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
   }
 })
 
@@ -479,23 +560,37 @@ const groupedAgendaEvents = computed(() => {
   return grouped
 })
 
-// Calendar Utility Functions
-function previousMonth() {
-  currentDate.value = subMonths(currentDate.value, 1)
-  fetchEventsForCurrentView()
-}
-
-function nextMonth() {
-  currentDate.value = addMonths(currentDate.value, 1)
-  fetchEventsForCurrentView()
-}
-
-function isToday(date: Date) {
-  return dateFnsIsToday(date)
-}
-
-function formatHour(hour: number) {
+// Utility Functions
+function formatHour(hour: number): string {
   return format(addHours(startOfDay(new Date()), hour), 'h a')
+}
+
+function formatEventTime(time: string): string {
+  if (!time) return ''
+  try {
+    // Handle both HH:mm and ISO formats
+    if (time.includes('T')) {
+      return format(parseISO(time), 'h:mm a')
+    }
+    const [hours, minutes] = time.split(':')
+    const date = new Date()
+    date.setHours(parseInt(hours), parseInt(minutes))
+    return format(date, 'h:mm a')
+  } catch (error) {
+    console.error('Error formatting time:', error)
+    return time
+  }
+}
+
+function formatDuration(minutes: number): string {
+  if (minutes < 60) {
+    return `${minutes} min`
+  }
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+  return remainingMinutes 
+    ? `${hours}h ${remainingMinutes}m` 
+    : `${hours}h`
 }
 
 function getEventStyles(event: CalendarEvent): CSSProperties {
@@ -504,7 +599,7 @@ function getEventStyles(event: CalendarEvent): CSSProperties {
     return {
       height: '100%',
       backgroundColor: getEventColor(event.status),
-      position: 'relative' as const
+      position: 'relative'
     }
   }
 
@@ -533,7 +628,29 @@ function getEventStyles(event: CalendarEvent): CSSProperties {
   }
 }
 
-// Event Handling Functions
+function getEventColor(status: EventStatus): string {
+  switch (status) {
+    case 'completed':
+      return 'var(--success)'
+    case 'cancelled':
+      return 'var(--error)'
+    default:
+      return 'var(--primary-blue)'
+  }
+}
+
+function isToday(date: Date): boolean {
+  return dateFnsIsToday(date)
+}
+
+function combineDateAndTime(date: Date, time: string): Date {
+  const [hours, minutes] = time.split(':').map(Number)
+  const result = new Date(date)
+  result.setHours(hours, minutes, 0, 0)
+  return result
+}
+
+// Event Handlers
 function getEventsForDate(date: Date): CalendarEvent[] {
   return eventsStore.events.filter(event => 
     isSameDay(new Date(event.date), date)
@@ -554,47 +671,21 @@ function getEventsForDateAndHour(date: Date, hour: number): CalendarEvent[] {
   })
 }
 
-// Add this helper function
-function formatEventTime(time: string | undefined): string {
-  if (!time) return ''
-  try {
-    const [hours, minutes] = time.split(':')
-    const date = new Date()
-    date.setHours(parseInt(hours), parseInt(minutes))
-    return format(date, 'h:mm a')
-  } catch (error) {
-    console.error('Error formatting time:', error)
-    return ''
-  }
+function previousMonth(): void {
+  currentDate.value = subMonths(currentDate.value, 1)
+  fetchEventsForCurrentView()
 }
 
-function getEventColor(status: CalendarEvent['status']) {
-  switch (status) {
-    case 'completed':
-      return 'var(--success)'
-    case 'cancelled':
-      return 'var(--error)'
-    default:
-      return 'var(--primary-blue)'
-  }
+function nextMonth(): void {
+  currentDate.value = addMonths(currentDate.value, 1)
+  fetchEventsForCurrentView()
 }
 
-function formatDuration(minutes: number): string {
-  if (minutes < 60) {
-    return `${minutes} min`
-  }
-  const hours = Math.floor(minutes / 60)
-  const remainingMinutes = minutes % 60
-  return remainingMinutes 
-    ? `${hours}h ${remainingMinutes}m` 
-    : `${hours}h`
-}
-
-function selectDate(date: { date: Date }) {
+function selectDate(date: { date: Date }): void {
   openNewEventModal(date.date)
 }
 
-function openEventDetails(event: CalendarEvent) {
+function openEventDetails(event: CalendarEvent): void {
   editingEvent.value = event
   newEvent.value = {
     title: event.title,
@@ -607,7 +698,7 @@ function openEventDetails(event: CalendarEvent) {
   showEventModal.value = true
 }
 
-function openNewEventModal(date: Date, hour?: number) {
+function openNewEventModal(date: Date, hour?: number): void {
   editingEvent.value = null
   newEvent.value = {
     title: '',
@@ -620,55 +711,82 @@ function openNewEventModal(date: Date, hour?: number) {
   showEventModal.value = true
 }
 
-function combineDateAndTime(date: Date, time: string): Date {
-  const [hours, minutes] = time.split(':').map(Number)
-  const result = new Date(date)
-  result.setHours(hours, minutes, 0, 0)
-  return result
+function closeEventModal(): void {
+  showEventModal.value = false
+  editingEvent.value = null
+  formError.value = null
+  newEvent.value = {
+    title: '',
+    date: new Date(),
+    time: '',
+    duration: 60,
+    customerId: '',
+    notes: ''
+  }
 }
 
-async function saveEvent() {
+async function saveEvent(): Promise<void> {
   try {
+    isSubmitting.value = true
+    formError.value = null
+
     const eventData = {
-      ...newEvent.value,
+      title: newEvent.value.title,
       date: combineDateAndTime(newEvent.value.date, newEvent.value.time),
       time: newEvent.value.time,
-      startTime: newEvent.value.time, // Set both time and startTime
-      duration: newEvent.value.duration || 60
+      startTime: newEvent.value.time,
+      duration: newEvent.value.duration,
+      customerId: newEvent.value.customerId,
+      notes: newEvent.value.notes,
+      status: 'scheduled' as const,
+      customerName: customers.value.find(c => c.id === newEvent.value.customerId)?.name || 'Unknown',
     }
-    console.log('About to save event with data:', eventData)
 
     if (editingEvent.value) {
-      await eventsStore.updateEvent(editingEvent.value.id, eventData)
+      await eventsStore.updateEvent(editingEvent.value.id, {
+        ...eventData,
+        updatedAt: new Date().toISOString()
+      })
     } else {
-      const createdEvent = await eventsStore.createEvent(eventData)
-      console.log('Event created:', createdEvent)
+      await eventsStore.createEvent({
+        ...eventData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })
     }
-    showEventModal.value = false
+
+    closeEventModal()
     await fetchEventsForCurrentView()
   } catch (error) {
     console.error('Failed to save event:', error)
+    formError.value = error instanceof Error ? error.message : 'Failed to save event'
+  } finally {
+    isSubmitting.value = false
   }
 }
 
-async function deleteEvent() {
+function confirmDelete(): void {
+  showDeleteModal.value = true
+}
+
+async function handleDelete(): Promise<void> {
   if (!editingEvent.value) return
-  
+
   try {
+    isDeleting.value = true
     await eventsStore.deleteEvent(editingEvent.value.id)
-    showEventModal.value = false
+    showDeleteModal.value = false
+    closeEventModal()
     await fetchEventsForCurrentView()
   } catch (error) {
     console.error('Failed to delete event:', error)
+    formError.value = error instanceof Error ? error.message : 'Failed to delete event'
+  } finally {
+    isDeleting.value = false
   }
 }
 
-function getCustomerName(customerId: string): string {
-  const customer = customersStore.customers.find(c => c.id === customerId)
-  return customer?.name || 'Unknown Customer'
-}
-
-async function updateEventStatus(eventId: string, status: CalendarEvent['status']) {
+async function updateEventStatus(eventId: string, status: EventStatus): Promise<void> {
   try {
     await eventsStore.updateEventStatus(eventId, status)
     await fetchEventsForCurrentView()
@@ -678,18 +796,30 @@ async function updateEventStatus(eventId: string, status: CalendarEvent['status'
 }
 
 async function fetchEventsForCurrentView(): Promise<void> {
-  const start = currentView.value === 'month' 
-    ? startOfMonth(currentDate.value)
-    : startOfWeek(currentDate.value)
-  
-  const end = currentView.value === 'month'
-    ? endOfMonth(currentDate.value)
-    : endOfWeek(currentDate.value)
+  try {
+    isLoading.value = true
+    error.value = null
+    
+    const start = currentView.value === 'month' 
+      ? startOfMonth(currentDate.value)
+      : startOfWeek(currentDate.value)
+    
+    const end = currentView.value === 'month'
+      ? endOfMonth(currentDate.value)
+      : endOfWeek(currentDate.value)
 
-  await eventsStore.fetchEvents({
-    start: format(start, 'yyyy-MM-dd'),
-    end: format(end, 'yyyy-MM-dd')
-  })
+    const filters: EventFilters = {
+      start: format(start, 'yyyy-MM-dd'),
+      end: format(end, 'yyyy-MM-dd')
+    }
+
+    await eventsStore.fetchEvents(filters)
+  } catch (err) {
+    console.error('Error fetching events:', err)
+    error.value = err instanceof Error ? err : new Error('Failed to fetch events')
+  } finally {
+    isLoading.value = false
+  }
 }
 
 // Lifecycle Hooks
@@ -700,7 +830,6 @@ onMounted(async () => {
       customersStore.fetchCustomers(),
       fetchEventsForCurrentView()
     ])
-    console.log('After fetch - Customers:', customersStore.customers)
   } catch (error) {
     console.error('Error in calendar mount:', error)
   }
@@ -716,6 +845,31 @@ onMounted(async () => {
   height: calc(100vh - 12rem);
   display: flex;
   flex-direction: column;
+}
+
+/* Loading and Error States */
+.loading-state,
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--space-4);
+  color: var(--text-2);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--border-color);
+  border-top-color: var(--primary-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Calendar Header */
@@ -752,6 +906,9 @@ onMounted(async () => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
 
 .weekdays {
@@ -760,8 +917,9 @@ onMounted(async () => {
   text-align: center;
   font-weight: 500;
   color: var(--text-2);
+  background: var(--surface-1);
+  padding: var(--space-3);
   border-bottom: 1px solid var(--border-color);
-  padding-bottom: var(--space-2);
 }
 
 .days {
@@ -770,7 +928,7 @@ onMounted(async () => {
   grid-template-columns: repeat(7, 1fr);
   gap: 1px;
   background: var(--border-color);
-  border: 1px solid var(--border-color);
+  padding: 1px;
 }
 
 .day {
@@ -780,6 +938,7 @@ onMounted(async () => {
   cursor: pointer;
   display: flex;
   flex-direction: column;
+  transition: background-color 0.2s ease;
 }
 
 .day:hover {
@@ -813,8 +972,6 @@ onMounted(async () => {
   display: flex;
   flex: 1;
   overflow: hidden;
-  height: 100%;
-  background: var(--surface-1);
 }
 
 .time-column {
@@ -822,12 +979,6 @@ onMounted(async () => {
   flex-shrink: 0;
   border-right: 1px solid var(--border-color);
   background: var(--surface-1);
-  z-index: 2;
-}
-
-.time-header {
-  height: 50px; /* Match the header height */
-  border-bottom: 1px solid var(--border-color);
 }
 
 .time-slot {
@@ -847,21 +998,16 @@ onMounted(async () => {
 }
 
 .week-header {
-  height: 50px;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  border-bottom: 1px solid var(--border-color);
   background: var(--surface-1);
-  z-index: 1;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .week-day-header {
   padding: var(--space-2);
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
+  border-right: 1px solid var(--border-color);
 }
 
 .week-body {
@@ -869,11 +1015,6 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   overflow-y: auto;
-  position: relative;
-}
-
-.day-column {
-  border-right: 1px solid var(--border-color);
 }
 
 .hour-slot {
@@ -884,27 +1025,23 @@ onMounted(async () => {
 
 /* Calendar Events */
 .calendar-event {
-  padding: var(--space-1) var(--space-2);
+  padding: var(--space-2);
   border-radius: var(--radius-sm);
-  background: var(--primary-blue);
-  color: white;
   font-size: var(--font-size-sm);
   cursor: pointer;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  z-index: 1;
 }
 
-.calendar-event.completed {
-  background: var(--success);
-}
-
-.calendar-event.cancelled {
-  background: var(--error);
+.calendar-event:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-2);
 }
 
 .calendar-event.detailed {
-  padding: var(--space-2);
+  padding: var(--space-3);
 }
 
 .event-time {
@@ -913,6 +1050,7 @@ onMounted(async () => {
 }
 
 .event-title {
+  font-weight: 500;
   margin-bottom: var(--space-1);
 }
 
@@ -921,13 +1059,61 @@ onMounted(async () => {
   opacity: 0.8;
 }
 
-.event-duration {
+/* Agenda View */
+.agenda-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.agenda-filters {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.filter-select {
+  width: 200px;
+  padding: var(--space-2);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.agenda-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+.agenda-group {
+  margin-bottom: var(--space-6);
+}
+
+.agenda-date {
+  font-weight: 600;
+  margin-bottom: var(--space-3);
   color: var(--text-2);
-  font-size: var(--font-size-sm);
+}
+
+.agenda-event {
+  display: flex;
+  align-items: center;
+  padding: var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-2);
+  background: var(--surface-1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.agenda-event:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-2);
 }
 
 .event-details {
   flex: 1;
+  margin: 0 var(--space-4);
 }
 
 .event-actions {
@@ -935,7 +1121,7 @@ onMounted(async () => {
   gap: var(--space-2);
 }
 
-/* Form Styles */
+/* Modal Styles */
 .event-form {
   display: flex;
   flex-direction: column;
@@ -959,96 +1145,16 @@ onMounted(async () => {
   color: var(--text-2);
 }
 
-.form-group input,
-.form-group select,
-.form-group textarea {
-  padding: var(--space-2);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: var(--surface-1);
-}
-
-.form-group textarea {
-  resize: vertical;
-  min-height: 100px;
+.form-error {
+  color: var(--error);
+  font-size: var(--font-size-sm);
+  margin-top: var(--space-2);
 }
 
 .modal-actions {
   display: flex;
-  gap: var(--space-2);
   justify-content: flex-end;
-}
-
-/* Day View */
-.day-view {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-.day-timeline {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.day-header {
-  padding: var(--space-2);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.day-title {
-  font-weight: 600;
-  text-align: center;
-}
-
-.day-title.today {
-  color: var(--primary);
-}
-
-.timeline-events {
-  flex: 1;
-  overflow-y: auto;
-}
-
-/* Agenda View */
-.agenda-view {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.agenda-filters {
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.agenda-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--space-4);
-}
-
-.agenda-group {
-  margin-bottom: var(--space-6);
-}
-
-.agenda-date {
-  font-weight: 600;
-  margin-bottom: var(--space-2);
-  color: var(--text-2);
-}
-
-.agenda-event {
-  display: flex;
-  align-items: center;
-  padding: var(--space-3);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  margin-bottom: var(--space-2);
-  background: var(--surface-2);
+  gap: var(--space-2);
 }
 
 /* Responsive Styles */
@@ -1067,12 +1173,44 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 
+  .week-view-container {
+    flex-direction: column;
+  }
+
+  .time-column {
+    width: 100%;
+    height: 40px;
+    display: flex;
+    overflow-x: auto;
+  }
+
+  .time-slot {
+    min-width: 60px;
+  }
+}
+
+@media (max-width: 480px) {
+  .calendar-container {
+    padding: var(--space-2);
+  }
+
   .day {
     min-height: 80px;
+    font-size: var(--font-size-sm);
   }
 
   .calendar-event {
     font-size: var(--font-size-xs);
+  }
+
+  .agenda-event {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .event-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 </style>
