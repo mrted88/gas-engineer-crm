@@ -42,15 +42,19 @@ export const useEventsStore = defineStore('events', () => {
         throw new Error('Missing required fields')
       }
       
-      // Transform NewCalendarEvent into the format expected by the API
-      const eventData: Omit<CalendarEvent, 'id'> = {
-        ...data,
-        customerName: '', // Will be filled by the API
-        status: 'scheduled' as EventStatus,
+      const eventData: Omit<CalendarEvent, "id"> = {
+        title: data.title,
+        date: data.date,
+        time: data.time,
+        duration: data.duration,
+        customerId: data.customerId,
+        notes: data.notes,
+        status: 'scheduled',
+        customerName: 'Unknown', // This will be set by the API
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
-      
+  
       console.log('Store: Creating event with data:', eventData)
       const response = await api.events.create(eventData)
       console.log('Store: Received response:', response)
