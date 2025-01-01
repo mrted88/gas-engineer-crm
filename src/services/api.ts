@@ -5,7 +5,7 @@ import type {
   EventSearchParams 
 } from '@/types/event'
 
-interface Customer {
+export interface Customer {
   id: string
   name: string
   email: string
@@ -15,6 +15,7 @@ interface Customer {
 
 interface EventsApi {
   _mockEvents: CalendarEvent[]
+  _saveMockEvents(): void
   list(params?: { start: string; end: string }): Promise<CalendarEvent[]>
   create(data: Omit<CalendarEvent, 'id'>): Promise<CalendarEvent>
   update(id: string, data: Partial<CalendarEvent>): Promise<CalendarEvent>
@@ -63,16 +64,47 @@ const mockCustomers: Customer[] = [
   }
 ]
 
-// Helper function to handle API responses
+// Helper function to handle API responses with improved error handling
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const error = await response.json().catch(() => ({}))
-    throw new Error(error.message || 'API request failed')
+    console.error('API Error:', {
+      status: response.status,
+      statusText: response.statusText,
+      url: response.url,
+      error
+    })
+    
+    // Handle 401 unauthorized errors
+    if (response.status === 401) {
+      console.warn('Authentication error detected')
+      const token = localStorage.getItem('token')
+      
+      // Only redirect if:
+      // 1. We're not already on the login page
+      // 2. There's no token (actually logged out)
+      // 3. Not viewing event details
+      if (window.location.pathname !== '/login' && 
+          !token && 
+          !window.location.pathname.includes('/events/')) {
+        localStorage.setItem('redirectPath', window.location.pathname)
+        console.log('Redirecting to login page')
+        window.location.href = '/login'
+      }
+    }
+    
+    throw new Error(error.message || `API request failed: ${response.statusText}`)
   }
-  return response.json()
+
+  try {
+    return await response.json()
+  } catch (error) {
+    console.error('Error parsing JSON response:', error)
+    throw new Error('Invalid response format')
+  }
 }
 
-// Helper function to get headers with auth token
+// Helper function to get headers with auth token and logging
 function getHeaders(includeAuth: boolean = true) {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -82,6 +114,9 @@ function getHeaders(includeAuth: boolean = true) {
     const token = localStorage.getItem('token')
     if (token) {
       headers['Authorization'] = `Bearer ${token}`
+      console.log('Adding token to request')
+    } else {
+      console.warn('No token found for authenticated request')
     }
   }
   
@@ -91,9 +126,10 @@ function getHeaders(includeAuth: boolean = true) {
 export const api = {
   auth: {
     async login(email: string, password: string) {
+      console.log('API: Login attempt for:', email)
       // For development/testing
       if (email === 'test@example.com' && password === 'password123') {
-        return {
+        const mockResponse = {
           user: {
             id: '1',
             name: 'Test User',
@@ -102,84 +138,238 @@ export const api = {
           },
           token: 'test-token-123'
         }
+        console.log('API: Mock login successful')
+        return mockResponse
       }
 
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: getHeaders(false),
-        body: JSON.stringify({ email, password }),
-      })
-
-      return handleResponse<{ user: User; token: string }>(response)
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: getHeaders(false),
+          body: JSON.stringify({ email, password }),
+        })
+        return handleResponse<{ user: User; token: string }>(response)
+      } catch (error) {
+        console.error('Login error:', error)
+        throw error
+      }
     },
 
     async register(data: RegisterData) {
+      console.log('API: Register attempt')
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: getHeaders(false),
         body: JSON.stringify(data),
       })
-
       return handleResponse<{ user: User; token: string }>(response)
     },
 
     async getProfile() {
+      console.log('API: Fetching user profile')
       const response = await fetch('/api/auth/me', {
         headers: getHeaders(),
       })
-
       return handleResponse<User>(response)
     },
 
     async updateProfile(data: Partial<User>) {
+      console.log('API: Updating user profile')
       const response = await fetch('/api/auth/profile', {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify(data),
       })
-
       return handleResponse<User>(response)
     },
 
     async changePassword(data: { currentPassword: string; newPassword: string }) {
+      console.log('API: Changing password')
       const response = await fetch('/api/auth/change-password', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(data),
       })
-
-      return handleResponse<{ message: string }>(response)
-    },
-
-    async forgotPassword(email: string) {
-      const response = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: getHeaders(false),
-        body: JSON.stringify({ email }),
-      })
-
-      return handleResponse<{ message: string }>(response)
-    },
-
-    async resetPassword(token: string, password: string) {
-      const response = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: getHeaders(false),
-        body: JSON.stringify({ token, password }),
-      })
-
       return handleResponse<{ message: string }>(response)
     },
   },
 
+  events: {
+    _mockEvents: (() => {
+      const saved = localStorage.getItem('mockEvents')
+      return saved ? JSON.parse(saved) : []
+    })() as CalendarEvent[],
+
+    _saveMockEvents() {
+      localStorage.setItem('mockEvents', JSON.stringify(this._mockEvents))
+    },
+
+    async list(params?: { start: string; end: string }) {
+      console.log('API: Listing events with params:', params)
+      try {
+        if (this._mockEvents.length === 0) {
+          const defaultEvent = {
+            id: '1',
+            title: 'Boiler Service',
+            date: new Date('2024-01-15'),
+            startTime: '09:00',
+            time: '09:00',
+            duration: 60,
+            customerId: '1',
+            customerName: 'John Smith',
+            status: 'scheduled' as EventStatus,
+            notes: 'Annual service',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+          this._mockEvents.push(defaultEvent)
+          this._saveMockEvents()
+        }
+        return Promise.resolve(this._mockEvents)
+      } catch (error) {
+        console.error('Error listing events:', error)
+        throw error
+      }
+    },
+
+    async get(id: string) {
+      console.log('API: Getting event:', id)
+      try {
+        const event = this._mockEvents.find(e => e.id === id)
+        if (!event) {
+          throw new Error('Event not found')
+        }
+        return Promise.resolve(event)
+      } catch (error) {
+        console.error('Error getting event:', error)
+        throw error
+      }
+    },
+
+    async create(data: Omit<CalendarEvent, 'id'>) {
+      console.log('API: Creating event with data:', data)
+      try {
+        const customer = mockCustomers.find(c => c.id === data.customerId)
+        const newEvent = {
+          id: Date.now().toString(),
+          ...data,
+          date: new Date(data.date),
+          startTime: data.time,
+          customerName: customer?.name || 'Unknown Customer',
+          status: 'scheduled' as EventStatus,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+        this._mockEvents.push(newEvent)
+        this._saveMockEvents()
+        return Promise.resolve(newEvent)
+      } catch (error) {
+        console.error('Error creating event:', error)
+        throw error
+      }
+    },
+
+    async update(id: string, data: Partial<CalendarEvent>) {
+      console.log('API: Updating event:', id, data)
+      try {
+        const index = this._mockEvents.findIndex(e => e.id === id)
+        if (index === -1) {
+          throw new Error('Event not found')
+        }
+        
+        this._mockEvents[index] = {
+          ...this._mockEvents[index],
+          ...data,
+          date: new Date(data.date || this._mockEvents[index].date),
+          updatedAt: new Date().toISOString()
+        }
+        
+        this._saveMockEvents()
+        return Promise.resolve(this._mockEvents[index])
+      } catch (error) {
+        console.error('Error updating event:', error)
+        throw error
+      }
+    },
+
+    async delete(id: string) {
+      console.log('API: Deleting event:', id)
+      try {
+        const initialLength = this._mockEvents.length
+        this._mockEvents = this._mockEvents.filter(e => e.id !== id)
+        
+        if (this._mockEvents.length === initialLength) {
+          throw new Error('Event not found')
+        }
+        
+        this._saveMockEvents()
+        return Promise.resolve()
+      } catch (error) {
+        console.error('Error deleting event:', error)
+        throw error
+      }
+    },
+
+    async updateStatus(id: string, status: EventStatus) {
+      console.log('API: Updating event status:', id, status)
+      try {
+        const index = this._mockEvents.findIndex(e => e.id === id)
+        if (index === -1) {
+          throw new Error('Event not found')
+        }
+        
+        this._mockEvents[index].status = status
+        this._mockEvents[index].updatedAt = new Date().toISOString()
+        this._saveMockEvents()
+        return Promise.resolve({ id, status })
+      } catch (error) {
+        console.error('Error updating event status:', error)
+        throw error
+      }
+    },
+
+    async search(params: EventSearchParams) {
+      console.log('API: Searching events with params:', params)
+      try {
+        const filteredEvents = this._mockEvents.filter(event => {
+          if (params.query) {
+            const searchTerm = params.query.toLowerCase()
+            if (!event.title.toLowerCase().includes(searchTerm) &&
+                !event.customerName.toLowerCase().includes(searchTerm)) {
+              return false
+            }
+          }
+          if (params.status && event.status !== params.status) {
+            return false
+          }
+          if (params.customerId && event.customerId !== params.customerId) {
+            return false
+          }
+          if (params.startDate && new Date(event.date) < new Date(params.startDate)) {
+            return false
+          }
+          if (params.endDate && new Date(event.date) > new Date(params.endDate)) {
+            return false
+          }
+          return true
+        })
+        
+        return Promise.resolve(filteredEvents)
+      } catch (error) {
+        console.error('Error searching events:', error)
+        throw error
+      }
+    }
+  } as EventsApi,
+
   customers: {
     async list() {
-      // For development/testing
+      console.log('API: Listing customers')
       return Promise.resolve(mockCustomers)
     },
 
     async get(id: string) {
-      // For development/testing
+      console.log('API: Getting customer:', id)
       const customer = mockCustomers.find(c => c.id === id)
       if (!customer) {
         throw new Error('Customer not found')
@@ -187,163 +377,43 @@ export const api = {
       return Promise.resolve(customer)
     },
 
-    async create(data: any) {
+    async create(data: Omit<Customer, 'id'>) {
+      console.log('API: Creating customer:', data)
       const response = await fetch('/api/customers', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(data),
       })
-
-      return handleResponse<any>(response)
+      return handleResponse<Customer>(response)
     },
 
-    async update(id: string, data: any) {
+    async update(id: string, data: Partial<Customer>) {
+      console.log('API: Updating customer:', id, data)
       const response = await fetch(`/api/customers/${id}`, {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify(data),
       })
-
-      return handleResponse<any>(response)
+      return handleResponse<Customer>(response)
     },
 
     async delete(id: string) {
+      console.log('API: Deleting customer:', id)
       const response = await fetch(`/api/customers/${id}`, {
         method: 'DELETE',
         headers: getHeaders(),
       })
-
       return handleResponse<void>(response)
     },
 
     async search(query: string) {
+      console.log('API: Searching customers:', query)
       const response = await fetch(`/api/customers/search?q=${encodeURIComponent(query)}`, {
         headers: getHeaders(),
       })
-
-      return handleResponse<any[]>(response)
+      return handleResponse<Customer[]>(response)
     },
-},
-
-  events: {
-    _mockEvents: [] as CalendarEvent[],
-
-    async list(params?: { start: string; end: string }) {
-      console.log('API: Listing events with params:', params)
-      return Promise.resolve(this._mockEvents.length > 0 ? this._mockEvents : [
-        {
-          id: '1',
-          title: 'Boiler Service',
-          date: new Date('2024-01-15'),
-          startTime: '09:00',
-          time: '09:00',
-          duration: 60,
-          customerId: '1',
-          customerName: 'John Smith',
-          status: 'scheduled' as EventStatus,
-          notes: 'Annual service',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ])
-    },
-
-    async get(id: string) {
-      console.log('API: Getting event:', id)
-      const event = this._mockEvents.find(e => e.id === id)
-      if (!event) {
-        // Return mock data if event not found
-        return Promise.resolve({
-          id: '1',
-          title: 'Boiler Service',
-          date: new Date('2024-01-15'),
-          startTime: '09:00',
-          time: '09:00',
-          duration: 60,
-          customerId: '1',
-          customerName: 'John Smith',
-          status: 'scheduled' as EventStatus,
-          notes: 'Annual service',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        })
-      }
-      return Promise.resolve(event)
-    },
-
-    async create(data: Omit<CalendarEvent, 'id'>) {
-      console.log('API: Creating event with data:', data)
-      const customer = mockCustomers.find(c => c.id === data.customerId)
-      const newEvent = {
-        id: Date.now().toString(),
-        ...data,
-        date: new Date(data.date),
-        startTime: data.time,
-        customerName: customer?.name || 'Unknown Customer',
-        status: 'scheduled' as EventStatus,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-      this._mockEvents.push(newEvent)
-      console.log('API: Current mock events:', this._mockEvents)
-      return Promise.resolve(newEvent)
-    },
-
-    async update(id: string, data: Partial<CalendarEvent>) {
-      console.log('API: Updating event:', id, data)
-      const index = this._mockEvents.findIndex(e => e.id === id)
-      if (index !== -1) {
-        this._mockEvents[index] = {
-          ...this._mockEvents[index],
-          ...data,
-          date: new Date(data.date || this._mockEvents[index].date),
-          updatedAt: new Date().toISOString()
-        }
-      }
-      return Promise.resolve(this._mockEvents[index])
-    },
-
-    async delete(id: string) {
-      console.log('API: Deleting event:', id)
-      this._mockEvents = this._mockEvents.filter(e => e.id !== id)
-      return Promise.resolve()
-    },
-
-    async updateStatus(id: string, status: EventStatus) {
-      console.log('API: Updating event status:', id, status)
-      const index = this._mockEvents.findIndex(e => e.id === id)
-      if (index !== -1) {
-        this._mockEvents[index].status = status
-      }
-      return Promise.resolve({ id, status })
-    },
-
-    async search(params: EventSearchParams) {
-      console.log('API: Searching events with params:', params)
-      return this._mockEvents.filter(event => {
-        if (params.query) {
-          const searchTerm = params.query.toLowerCase()
-          if (!event.title.toLowerCase().includes(searchTerm) &&
-              !event.customerName.toLowerCase().includes(searchTerm)) {
-            return false
-          }
-        }
-        if (params.status && event.status !== params.status) {
-          return false
-        }
-        if (params.customerId && event.customerId !== params.customerId) {
-          return false
-        }
-        if (params.startDate && new Date(event.date) < new Date(params.startDate)) {
-          return false
-        }
-        if (params.endDate && new Date(event.date) > new Date(params.endDate)) {
-          return false
-        }
-        return true
-      })
-    }
-  } as EventsApi
+  }
 }
 
 export type Api = typeof api

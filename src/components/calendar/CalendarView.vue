@@ -736,16 +736,9 @@ async function saveEvent(): Promise<void> {
     }
 
     if (editingEvent.value) {
-      await eventsStore.updateEvent(editingEvent.value.id, {
-        ...eventData,
-        updatedAt: new Date().toISOString()
-      })
+      await eventsStore.updateEvent(editingEvent.value.id, eventData)
     } else {
-      await eventsStore.createEvent({
-        ...eventData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      })
+      await eventsStore.createEvent(eventData)
     }
 
     closeEventModal()

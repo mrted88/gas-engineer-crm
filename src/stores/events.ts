@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { api } from '@/services/api'
 import type { 
@@ -14,6 +14,25 @@ export const useEventsStore = defineStore('events', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
+  // Load events from localStorage on initialization
+  const savedEvents = localStorage.getItem('events')
+  if (savedEvents) {
+    try {
+      events.value = JSON.parse(savedEvents)
+    } catch (e) {
+      console.error('Error loading saved events:', e)
+    }
+  }
+
+  // Watch for changes and save to localStorage
+  watch(
+    events,
+    (newEvents) => {
+      localStorage.setItem('events', JSON.stringify(newEvents))
+    },
+    { deep: true }
+  )
+
   // Actions
   async function fetchEvents(params?: { start: string; end: string }) {
     try {
@@ -25,7 +44,15 @@ export const useEventsStore = defineStore('events', () => {
       events.value = response
       console.log('Store: Updated events array:', events.value)
     } catch (err) {
+      console.error('Error fetching events:', err)
       error.value = err instanceof Error ? err.message : 'Failed to fetch events'
+      // Use cached events if API call fails
+      if (events.value.length === 0) {
+        const savedEvents = localStorage.getItem('events')
+        if (savedEvents) {
+          events.value = JSON.parse(savedEvents)
+        }
+      }
       throw err
     } finally {
       loading.value = false
@@ -37,20 +64,20 @@ export const useEventsStore = defineStore('events', () => {
       loading.value = true
       error.value = null
       
-      // Validate required fields
       if (!data.title || !data.date) {
         throw new Error('Missing required fields')
       }
       
-      const eventData: Omit<CalendarEvent, "id"> = {
+      const eventData = {
         title: data.title,
         date: data.date,
         time: data.time,
+        startTime: data.time,
         duration: data.duration,
         customerId: data.customerId,
         notes: data.notes,
-        status: 'scheduled',
-        customerName: 'Unknown', // This will be set by the API
+        status: 'scheduled' as EventStatus,
+        customerName: 'Unknown',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
@@ -58,9 +85,14 @@ export const useEventsStore = defineStore('events', () => {
       console.log('Store: Creating event with data:', eventData)
       const response = await api.events.create(eventData)
       console.log('Store: Received response:', response)
-      events.value = [...events.value, response]
+      
+      // Update local state before any potential redirect
+      const newEvent = { ...response }
+      events.value = [...events.value, newEvent]
+      
       return response
     } catch (err) {
+      console.error('Error creating event:', err)
       error.value = err instanceof Error ? err.message : 'Failed to create event'
       throw err
     } finally {
@@ -72,13 +104,23 @@ export const useEventsStore = defineStore('events', () => {
     try {
       loading.value = true
       error.value = null
-      const response = await api.events.update(id, data)
+      
+      const updatedData = {
+        ...data,
+        updatedAt: new Date().toISOString()
+      }
+      
+      const response = await api.events.update(id, updatedData)
+      
+      // Update local state
       const index = events.value.findIndex(e => e.id === id)
       if (index !== -1) {
         events.value[index] = response
       }
+      
       return response
     } catch (err) {
+      console.error('Error updating event:', err)
       error.value = err instanceof Error ? err.message : 'Failed to update event'
       throw err
     } finally {
@@ -90,9 +132,14 @@ export const useEventsStore = defineStore('events', () => {
     try {
       loading.value = true
       error.value = null
+      
       await api.events.delete(id)
+      
+      // Update local state
       events.value = events.value.filter(e => e.id !== id)
+      
     } catch (err) {
+      console.error('Error deleting event:', err)
       error.value = err instanceof Error ? err.message : 'Failed to delete event'
       throw err
     } finally {
@@ -104,13 +151,22 @@ export const useEventsStore = defineStore('events', () => {
     try {
       loading.value = true
       error.value = null
+      
       const response = await api.events.updateStatus(id, status)
+      
+      // Update local state
       const index = events.value.findIndex(e => e.id === id)
       if (index !== -1) {
-        events.value[index] = { ...events.value[index], status }
+        events.value[index] = { 
+          ...events.value[index], 
+          status,
+          updatedAt: new Date().toISOString()
+        }
       }
+      
       return response
     } catch (err) {
+      console.error('Error updating event status:', err)
       error.value = err instanceof Error ? err.message : 'Failed to update event status'
       throw err
     } finally {
@@ -122,9 +178,12 @@ export const useEventsStore = defineStore('events', () => {
     try {
       loading.value = true
       error.value = null
+      
       const response = await api.events.get(id)
       return response
+      
     } catch (err) {
+      console.error('Error fetching event:', err)
       error.value = err instanceof Error ? err.message : 'Failed to fetch event'
       throw err
     } finally {
@@ -136,9 +195,12 @@ export const useEventsStore = defineStore('events', () => {
     try {
       loading.value = true
       error.value = null
+      
       const response = await api.events.search(params)
       return response
+      
     } catch (err) {
+      console.error('Error searching events:', err)
       error.value = err instanceof Error ? err.message : 'Failed to search events'
       throw err
     } finally {
@@ -147,9 +209,12 @@ export const useEventsStore = defineStore('events', () => {
   }
 
   return {
+    // State
     events,
     loading,
     error,
+    
+    // Actions
     fetchEvents,
     createEvent,
     updateEvent,

@@ -22,6 +22,17 @@ interface RegisterData {
   password: string
 }
 
+interface ProfileUpdateData {
+  firstName?: string
+  lastName?: string
+  email?: string
+}
+
+interface PasswordChangeData {
+  currentPassword: string
+  newPassword: string
+}
+
 export const useAuthStore = defineStore('auth', () => {
   // State
   const user = ref<User | null>(null)
@@ -38,14 +49,15 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       loading.value = true
       error.value = null
-      
+      console.log('Attempting login...')
       const response = await api.auth.login(credentials.email, credentials.password)
-      
       user.value = response.user
       token.value = response.token
       localStorage.setItem('token', response.token)
-      
+      console.log('Login successful')
+      return response
     } catch (err) {
+      console.error('Login failed:', err)
       error.value = err instanceof Error ? err.message : 'Login failed'
       throw err
     } finally {
@@ -53,17 +65,15 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function register(userData: RegisterData) {
+  async function register(data: RegisterData) {
     try {
       loading.value = true
       error.value = null
-      
-      const response = await api.auth.register(userData)
-      
+      const response = await api.auth.register(data)
       user.value = response.user
       token.value = response.token
       localStorage.setItem('token', response.token)
-      
+      return response
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Registration failed'
       throw err
@@ -75,14 +85,13 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout() {
     try {
       loading.value = true
-      // Optional: Call logout endpoint if you have one
+      console.log('Logging out...')
+      // Optional: Call logout endpoint if your API has one
       // await api.auth.logout()
     } catch (err) {
       console.error('Logout error:', err)
     } finally {
-      user.value = null
-      token.value = null
-      localStorage.removeItem('token')
+      resetState()
       loading.value = false
     }
   }
@@ -90,32 +99,32 @@ export const useAuthStore = defineStore('auth', () => {
   async function checkAuth() {
     const savedToken = localStorage.getItem('token')
     if (!savedToken) {
+      console.log('No token found during auth check')
       return
     }
 
     try {
       loading.value = true
       token.value = savedToken
-      
+      console.log('Checking authentication...')
       const userData = await api.auth.getProfile()
       user.value = userData
-      
+      console.log('Auth check successful')
     } catch (err) {
       console.error('Auth check failed:', err)
-      await logout()
+      resetState()
     } finally {
       loading.value = false
     }
   }
 
-  async function updateProfile(profileData: Partial<User>) {
+  async function updateProfile(data: ProfileUpdateData) {
     try {
       loading.value = true
       error.value = null
-      
-      const updatedUser = await api.auth.updateProfile(profileData)
+      const updatedUser = await api.auth.updateProfile(data)
       user.value = updatedUser
-      
+      return updatedUser
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Profile update failed'
       throw err
@@ -124,16 +133,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function changePassword(currentPassword: string, newPassword: string) {
+  async function changePassword(data: PasswordChangeData) {
     try {
       loading.value = true
       error.value = null
-      
-      await api.auth.changePassword({
-        currentPassword,
-        newPassword
-      })
-      
+      await api.auth.changePassword(data)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Password change failed'
       throw err
@@ -142,21 +146,26 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Initialize auth state
   function init() {
+    console.log('Initializing auth store')
     const savedToken = localStorage.getItem('token')
     if (savedToken) {
+      console.log('Found saved token')
       token.value = savedToken
-      checkAuth()
+      checkAuth().catch(err => {
+        console.error('Init auth check failed:', err)
+        resetState()
+      })
     }
   }
 
-  // Reset store state
   function resetState() {
+    console.log('Resetting auth state')
     user.value = null
     token.value = null
     loading.value = false
     error.value = null
+    localStorage.removeItem('token')
   }
 
   return {
@@ -165,11 +174,9 @@ export const useAuthStore = defineStore('auth', () => {
     token,
     loading,
     error,
-
     // Getters
     isAuthenticated,
     isAdmin,
-
     // Actions
     login,
     register,
@@ -183,4 +190,4 @@ export const useAuthStore = defineStore('auth', () => {
 })
 
 // Export types
-export type { User, LoginCredentials, RegisterData }
+export type { User, LoginCredentials, RegisterData, ProfileUpdateData, PasswordChangeData }
