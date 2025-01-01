@@ -1,50 +1,83 @@
 <template>
   <div class="job-details-container">
     <div v-if="loading" class="loading-state">
+      <div class="spinner"></div>
       Loading...
     </div>
     
     <div v-else-if="error" class="error-state">
-      {{ error }}
+      <p>{{ error }}</p>
       <button @click="loadEventData" class="btn btn-primary">Retry</button>
+      <button @click="router.push('/')" class="btn btn-secondary">Back to Calendar</button>
     </div>
 
     <div v-else-if="event" class="job-details">
-      <!-- Debug section -->
-      <pre class="debug">{{ JSON.stringify(event, null, 2) }}</pre>
-      
-      <h1>{{ event.title }}</h1>
+      <div class="job-header">
+        <h1>{{ event.title }}</h1>
+        <div class="status-badge" :class="event.status">
+          {{ event.status }}
+        </div>
+      </div>
+
       <div class="event-meta">
-        <p>Date: {{ formatDateTime(event.date, event.time) }}</p>
-        <p>Duration: {{ formatDuration(event.duration) }}</p>
-        <p>Status: {{ event.status }}</p>
+        <div class="meta-item">
+          <i class="fas fa-calendar"></i>
+          <span>{{ formatDate(event.date) }}</span>
+        </div>
+        <div class="meta-item">
+          <i class="fas fa-clock"></i>
+          <span>{{ formatTime(event.time) }}</span>
+        </div>
+        <div class="meta-item">
+          <i class="fas fa-hourglass-half"></i>
+          <span>{{ formatDuration(event.duration) }}</span>
+        </div>
       </div>
 
       <div v-if="customer" class="customer-details">
         <h2>Customer Details</h2>
-        <p>Name: {{ customer.name }}</p>
-        <p>Phone: {{ customer.phone }}</p>
-        <p>Email: {{ customer.email }}</p>
-        <p>Address: {{ customer.address }}</p>
+        <div class="customer-info">
+          <div class="info-item">
+            <label>Name:</label>
+            <span>{{ customer.name }}</span>
+          </div>
+          <div class="info-item">
+            <label>Phone:</label>
+            <span>{{ customer.phone }}</span>
+          </div>
+          <div class="info-item">
+            <label>Email:</label>
+            <span>{{ customer.email }}</span>
+          </div>
+          <div class="info-item">
+            <label>Address:</label>
+            <span>{{ customer.address }}</span>
+          </div>
+        </div>
       </div>
 
-      <div class="event-actions">
+      <div v-if="event.notes" class="notes-section">
+        <h2>Notes</h2>
+        <p>{{ event.notes }}</p>
+      </div>
+
+      <div class="action-buttons">
         <button 
-          class="btn btn-primary"
+          v-if="event.status === 'scheduled'"
+          class="btn btn-success"
           @click="updateStatus('completed')"
-          :disabled="event.status === 'completed'"
         >
           Mark as Completed
         </button>
         <button 
+          v-if="event.status === 'scheduled'"
           class="btn btn-danger"
           @click="updateStatus('cancelled')"
-          :disabled="event.status === 'cancelled'"
         >
           Cancel Appointment
         </button>
         <button 
-          class="btn btn-secondary"
+          class="btn btn-primary"
           @click="router.push('/')"
         >
           Back to Calendar
@@ -53,7 +86,8 @@
     </div>
 
     <div v-else class="not-found">
-      Event not found
+      <p>Event not found</p>
+      <button @click="router.push('/')" class="btn btn-primary">Back to Calendar</button>
     </div>
   </div>
 </template>
@@ -77,27 +111,30 @@ const customer = ref<Customer | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-function formatDateTime(date: Date | string, time: string): string {
-  const dateObj = typeof date === 'string' ? new Date(date) : date
-  return format(dateObj, 'MMMM d, yyyy') + ' at ' + format(new Date(`2000-01-01T${time}`), 'h:mm a')
+function formatDate(date: string | Date): string {
+  return format(new Date(date), 'EEEE, MMMM d, yyyy')
+}
+
+function formatTime(time: string): string {
+  return format(new Date(`2000-01-01T${time}`), 'h:mm a')
 }
 
 function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes} minutes`
   const hours = Math.floor(minutes / 60)
   const remainingMinutes = minutes % 60
-  return remainingMinutes 
-    ? `${hours} hour${hours > 1 ? 's' : ''} ${remainingMinutes} minutes`
+  if (hours === 0) return `${minutes} minutes`
+  return remainingMinutes > 0 
+    ? `${hours}h ${remainingMinutes}m`
     : `${hours} hour${hours > 1 ? 's' : ''}`
 }
 
-async function updateStatus(status: 'completed' | 'cancelled') {
+async function updateStatus(newStatus: 'completed' | 'cancelled') {
   if (!event.value?.id) return
   
   try {
     loading.value = true
-    await eventsStore.updateEventStatus(event.value.id, status)
-    await loadEventData()
+    await eventsStore.updateEventStatus(event.value.id, newStatus)
+    await loadEventData() // Reload the event data
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to update status'
   } finally {
@@ -107,22 +144,35 @@ async function updateStatus(status: 'completed' | 'cancelled') {
 
 async function loadEventData() {
   const eventId = route.params.id as string
+  if (!eventId) {
+    router.push('/')
+    return
+  }
+
   loading.value = true
   error.value = null
   
   try {
-    const eventData = await eventsStore.getEvent(eventId)
+    // First try to find the event in the store
+    let eventData = eventsStore.events.find(e => e.id === eventId)
+    
+    // If not found in store, fetch it from the API
+    if (!eventData) {
+      eventData = await eventsStore.getEvent(eventId)
+    }
+    
     if (!eventData) {
       throw new Error('Event not found')
     }
+
     event.value = eventData
-    
-    if (eventData?.customerId) {
-      const customerData = await customersStore.getCustomer(eventData.customerId)
-      customer.value = customerData
+
+    // Fetch customer details if we have a customerId
+    if (eventData.customerId) {
+      customer.value = await customersStore.getCustomer(eventData.customerId)
     }
   } catch (err) {
-    console.error('Error fetching job details:', err)
+    console.error('Error loading event:', err)
     error.value = err instanceof Error ? err.message : 'Failed to load event'
   } finally {
     loading.value = false
@@ -134,57 +184,124 @@ onMounted(loadEventData)
 
 <style scoped>
 .job-details-container {
-  padding: var(--space-4);
   max-width: 800px;
-  margin: 0 auto;
+  margin: 2rem auto;
+  padding: 0 1rem;
 }
 
 .loading-state,
 .error-state,
 .not-found {
   text-align: center;
-  padding: var(--space-8);
+  padding: 2rem;
 }
 
 .job-details {
-  background: var(--surface-1);
-  border-radius: var(--radius-lg);
-  padding: var(--space-6);
-  box-shadow: var(--shadow-1);
+  background: white;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.debug {
-  background: var(--surface-2);
-  padding: var(--space-4);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-4);
-  overflow-x: auto;
+.job-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.status-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  text-transform: capitalize;
+  font-weight: 500;
+}
+
+.status-badge.scheduled {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.status-badge.completed {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-badge.cancelled {
+  background-color: #ffebee;
+  color: #c62828;
 }
 
 .event-meta {
-  margin: var(--space-4) 0;
-  padding: var(--space-4);
-  background: var(--surface-2);
-  border-radius: var(--radius-md);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: #f5f5f5;
+  border-radius: 8px;
 }
 
-.customer-details {
-  margin: var(--space-4) 0;
-  padding: var(--space-4);
-  background: var(--surface-2);
-  border-radius: var(--radius-md);
-}
-
-.event-actions {
-  margin-top: var(--space-6);
+.meta-item {
   display: flex;
-  gap: var(--space-4);
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.customer-details,
+.notes-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #eee;
+}
+
+.customer-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.info-item label {
+  font-weight: 500;
+  color: #666;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
   justify-content: flex-end;
 }
 
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 @media (max-width: 640px) {
-  .event-actions {
+  .action-buttons {
     flex-direction: column;
+  }
+  
+  .event-meta {
+    grid-template-columns: 1fr;
   }
 }
 </style>
