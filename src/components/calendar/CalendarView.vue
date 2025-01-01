@@ -400,6 +400,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   format,
   startOfMonth,
@@ -441,6 +442,7 @@ import type {
 // Store instances
 const customersStore = useCustomersStore()
 const eventsStore = useEventsStore()
+const router = useRouter()
 
 // State
 const error = ref<Error | null>(null)
@@ -686,16 +688,7 @@ function selectDate(date: { date: Date }): void {
 }
 
 function openEventDetails(event: CalendarEvent): void {
-  editingEvent.value = event
-  newEvent.value = {
-    title: event.title,
-    date: new Date(event.date),
-    time: event.time || event.startTime || '',
-    duration: event.duration,
-    customerId: event.customerId,
-    notes: event.notes || ''
-  }
-  showEventModal.value = true
+  router.push(`/jobs/${event.id}`)
 }
 
 function openNewEventModal(date: Date, hour?: number): void {

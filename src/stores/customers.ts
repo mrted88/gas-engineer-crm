@@ -1,10 +1,10 @@
-// src/stores/customers.ts
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { api } from '@/services/api'
+import type { Customer } from '@/types/customer'
 
 export const useCustomersStore = defineStore('customers', () => {
-  const customers = ref<any[]>([])
+  const customers = ref<Customer[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -23,7 +23,27 @@ export const useCustomersStore = defineStore('customers', () => {
     }
   }
 
-  async function createCustomer(data: any) {
+  async function getCustomer(id: string) {
+    try {
+      loading.value = true
+      error.value = null
+      // First check if we already have the customer in our store
+      const existingCustomer = customers.value.find(c => c.id === id)
+      if (existingCustomer) {
+        return existingCustomer
+      }
+      // If not found in store, fetch from API
+      const customer = await api.customers.get(id)
+      return customer
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch customer'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function createCustomer(data: Omit<Customer, 'id'>) {
     try {
       loading.value = true
       error.value = null
@@ -38,7 +58,7 @@ export const useCustomersStore = defineStore('customers', () => {
     }
   }
 
-  async function updateCustomer(id: string, data: any) {
+  async function updateCustomer(id: string, data: Partial<Customer>) {
     try {
       loading.value = true
       error.value = null
@@ -75,6 +95,7 @@ export const useCustomersStore = defineStore('customers', () => {
     loading,
     error,
     fetchCustomers,
+    getCustomer,
     createCustomer,
     updateCustomer,
     deleteCustomer

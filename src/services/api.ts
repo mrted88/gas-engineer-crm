@@ -1,8 +1,31 @@
-// src/services/api.ts
 import type { User, LoginCredentials, RegisterData } from '@/stores/auth'
+import type { 
+  CalendarEvent, 
+  EventStatus, 
+  EventSearchParams 
+} from '@/types/event'
+
+interface Customer {
+  id: string
+  name: string
+  email: string
+  phone: string
+  address: string
+}
+
+interface EventsApi {
+  _mockEvents: CalendarEvent[]
+  list(params?: { start: string; end: string }): Promise<CalendarEvent[]>
+  create(data: Omit<CalendarEvent, 'id'>): Promise<CalendarEvent>
+  update(id: string, data: Partial<CalendarEvent>): Promise<CalendarEvent>
+  delete(id: string): Promise<void>
+  updateStatus(id: string, status: EventStatus): Promise<{ id: string; status: EventStatus }>
+  get(id: string): Promise<CalendarEvent>
+  search(params: EventSearchParams): Promise<CalendarEvent[]>
+}
 
 // Mock customers for development
-const mockCustomers = [
+const mockCustomers: Customer[] = [
   {
     id: '1',
     name: 'John Smith',
@@ -155,6 +178,15 @@ export const api = {
       return Promise.resolve(mockCustomers)
     },
 
+    async get(id: string) {
+      // For development/testing
+      const customer = mockCustomers.find(c => c.id === id)
+      if (!customer) {
+        throw new Error('Customer not found')
+      }
+      return Promise.resolve(customer)
+    },
+
     async create(data: any) {
       const response = await fetch('/api/customers', {
         method: 'POST',
@@ -191,14 +223,12 @@ export const api = {
 
       return handleResponse<any[]>(response)
     },
-  },
+},
 
   events: {
-    // Create a mock events array to persist data during development
-    _mockEvents: [] as any[],
+    _mockEvents: [] as CalendarEvent[],
 
     async list(params?: { start: string; end: string }) {
-      // For development/testing
       console.log('API: Listing events with params:', params)
       return Promise.resolve(this._mockEvents.length > 0 ? this._mockEvents : [
         {
@@ -206,10 +236,11 @@ export const api = {
           title: 'Boiler Service',
           date: new Date('2024-01-15'),
           startTime: '09:00',
+          time: '09:00',
           duration: 60,
           customerId: '1',
           customerName: 'John Smith',
-          status: 'scheduled' as const,
+          status: 'scheduled' as EventStatus,
           notes: 'Annual service',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
@@ -217,17 +248,39 @@ export const api = {
       ])
     },
 
-    async create(data: any) {
-      // For development/testing
+    async get(id: string) {
+      console.log('API: Getting event:', id)
+      const event = this._mockEvents.find(e => e.id === id)
+      if (!event) {
+        // Return mock data if event not found
+        return Promise.resolve({
+          id: '1',
+          title: 'Boiler Service',
+          date: new Date('2024-01-15'),
+          startTime: '09:00',
+          time: '09:00',
+          duration: 60,
+          customerId: '1',
+          customerName: 'John Smith',
+          status: 'scheduled' as EventStatus,
+          notes: 'Annual service',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        })
+      }
+      return Promise.resolve(event)
+    },
+
+    async create(data: Omit<CalendarEvent, 'id'>) {
       console.log('API: Creating event with data:', data)
       const customer = mockCustomers.find(c => c.id === data.customerId)
       const newEvent = {
         id: Date.now().toString(),
         ...data,
         date: new Date(data.date),
-        startTime: data.time,  // Make sure this is set
+        startTime: data.time,
         customerName: customer?.name || 'Unknown Customer',
-        status: 'scheduled' as const,
+        status: 'scheduled' as EventStatus,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
@@ -236,16 +289,14 @@ export const api = {
       return Promise.resolve(newEvent)
     },
 
-    async update(id: string, data: any) {
-      // For development/testing
+    async update(id: string, data: Partial<CalendarEvent>) {
       console.log('API: Updating event:', id, data)
       const index = this._mockEvents.findIndex(e => e.id === id)
       if (index !== -1) {
         this._mockEvents[index] = {
           ...this._mockEvents[index],
           ...data,
-          date: new Date(data.date),
-          status: (data.status || 'scheduled') as 'scheduled' | 'completed' | 'cancelled',
+          date: new Date(data.date || this._mockEvents[index].date),
           updatedAt: new Date().toISOString()
         }
       }
@@ -253,14 +304,12 @@ export const api = {
     },
 
     async delete(id: string) {
-      // For development/testing
       console.log('API: Deleting event:', id)
       this._mockEvents = this._mockEvents.filter(e => e.id !== id)
       return Promise.resolve()
     },
 
-    async updateStatus(id: string, status: 'scheduled' | 'completed' | 'cancelled') {
-      // For development/testing
+    async updateStatus(id: string, status: EventStatus) {
       console.log('API: Updating event status:', id, status)
       const index = this._mockEvents.findIndex(e => e.id === id)
       if (index !== -1) {
@@ -268,7 +317,33 @@ export const api = {
       }
       return Promise.resolve({ id, status })
     },
-  }
+
+    async search(params: EventSearchParams) {
+      console.log('API: Searching events with params:', params)
+      return this._mockEvents.filter(event => {
+        if (params.query) {
+          const searchTerm = params.query.toLowerCase()
+          if (!event.title.toLowerCase().includes(searchTerm) &&
+              !event.customerName.toLowerCase().includes(searchTerm)) {
+            return false
+          }
+        }
+        if (params.status && event.status !== params.status) {
+          return false
+        }
+        if (params.customerId && event.customerId !== params.customerId) {
+          return false
+        }
+        if (params.startDate && new Date(event.date) < new Date(params.startDate)) {
+          return false
+        }
+        if (params.endDate && new Date(event.date) > new Date(params.endDate)) {
+          return false
+        }
+        return true
+      })
+    }
+  } as EventsApi
 }
 
 export type Api = typeof api

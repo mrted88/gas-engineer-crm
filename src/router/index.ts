@@ -59,6 +59,17 @@ const router = createRouter({
         requiresAuth: true,
         roles: ['admin', 'user']
       }
+    },
+    // Add this new route for job details
+    {
+      path: '/jobs/:id',
+      name: 'JobDetails',
+      component: () => import('@/views/JobDetailsView.vue'),
+      props: true,
+      meta: {
+        requiresAuth: true,
+        roles: ['admin', 'user']
+      }
     }
   ]
 })
@@ -66,7 +77,6 @@ const router = createRouter({
 // Handle unauthorized access
 router.beforeEach((to, from, next) => {
   if (to.name === 'unauthorized') {
-    // Redirect to home page with error message
     next({ 
       name: 'home', 
       query: { error: 'unauthorized' }

@@ -1,7 +1,10 @@
-export interface CustomerFormData {
+export interface Customer {
+  id: string
   name: string
-  phone: string
   email: string
+  phone: string
   address: string
-  notes: string
 }
+
+export interface NewCustomer extends Omit<Customer, 'id'> {}
+export interface UpdateCustomer extends Partial<Customer> {}

@@ -1,8 +1,13 @@
-// src/stores/events.ts
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { api } from '@/services/api'
-import type { CalendarEvent } from '@/types/event'
+import type { 
+  CalendarEvent, 
+  EventStatus, 
+  NewCalendarEvent,
+  UpdateCalendarEvent,
+  EventSearchParams
+} from '@/types/event'
 
 export const useEventsStore = defineStore('events', () => {
   const events = ref<CalendarEvent[]>([])
@@ -27,7 +32,7 @@ export const useEventsStore = defineStore('events', () => {
     }
   }
 
-  async function createEvent(data: Omit<CalendarEvent, 'id'>) {
+  async function createEvent(data: NewCalendarEvent) {
     try {
       loading.value = true
       error.value = null
@@ -37,8 +42,17 @@ export const useEventsStore = defineStore('events', () => {
         throw new Error('Missing required fields')
       }
       
-      console.log('Store: Creating event with data:', data)
-      const response = await api.events.create(data)
+      // Transform NewCalendarEvent into the format expected by the API
+      const eventData: Omit<CalendarEvent, 'id'> = {
+        ...data,
+        customerName: '', // Will be filled by the API
+        status: 'scheduled' as EventStatus,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+      
+      console.log('Store: Creating event with data:', eventData)
+      const response = await api.events.create(eventData)
       console.log('Store: Received response:', response)
       events.value = [...events.value, response]
       return response
@@ -50,7 +64,7 @@ export const useEventsStore = defineStore('events', () => {
     }
   }
 
-  async function updateEvent(id: string, data: Partial<CalendarEvent>) {
+  async function updateEvent(id: string, data: UpdateCalendarEvent) {
     try {
       loading.value = true
       error.value = null
@@ -82,18 +96,46 @@ export const useEventsStore = defineStore('events', () => {
     }
   }
 
-  async function updateEventStatus(id: string, status: 'scheduled' | 'completed' | 'cancelled') {
+  async function updateEventStatus(id: string, status: EventStatus) {
     try {
       loading.value = true
       error.value = null
       const response = await api.events.updateStatus(id, status)
       const index = events.value.findIndex(e => e.id === id)
       if (index !== -1) {
-        events.value[index] = { ...events.value[index], status: response.status }
+        events.value[index] = { ...events.value[index], status }
       }
       return response
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to update event status'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function getEvent(id: string) {
+    try {
+      loading.value = true
+      error.value = null
+      const response = await api.events.get(id)
+      return response
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch event'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function searchEvents(params: EventSearchParams) {
+    try {
+      loading.value = true
+      error.value = null
+      const response = await api.events.search(params)
+      return response
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to search events'
       throw err
     } finally {
       loading.value = false
@@ -108,6 +150,8 @@ export const useEventsStore = defineStore('events', () => {
     createEvent,
     updateEvent,
     deleteEvent,
-    updateEventStatus
+    updateEventStatus,
+    getEvent,
+    searchEvents
   }
 })

@@ -1,4 +1,5 @@
-// src/types/event.ts
+// Event status type
+export type EventStatus = 'scheduled' | 'completed' | 'cancelled'
 
 // Main Calendar Event Interface
 export interface CalendarEvent {
@@ -30,9 +31,6 @@ export interface NewCalendarEvent {
 export interface UpdateCalendarEvent extends Partial<Omit<CalendarEvent, 'id'>> {
   updatedAt?: string
 }
-
-// Event status type
-export type EventStatus = 'scheduled' | 'completed' | 'cancelled'
 
 // Filter interfaces
 export interface EventFilters {
