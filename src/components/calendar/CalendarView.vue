@@ -3,14 +3,14 @@
     <!-- Calendar Header -->
     <div class="calendar-header">
       <div class="calendar-nav">
-        <button class="btn btn-secondary" @click="previousMonth">
+        <button class="nav-button" @click="handleNavigation('previous')">
           <i class="fas fa-chevron-left"></i>
-        </button>
-        <h2>{{ currentMonthYear }}</h2>
-        <button class="btn btn-secondary" @click="nextMonth">
-          <i class="fas fa-chevron-right"></i>
-        </button>
-      </div>
+       </button>
+       <h2>{{ currentMonthYear }}</h2>
+       <button class="nav-button" @click="handleNavigation('next')">
+         <i class="fas fa-chevron-right"></i>
+       </button>
+    </div>
       <div class="calendar-actions">
         <button 
           v-for="view in views" 
@@ -174,8 +174,8 @@
         </div>
       </template>
 
-      <!-- Agenda View -->
-      <template v-else-if="currentView === 'agenda'">
+            <!-- Agenda View -->
+            <template v-else-if="currentView === 'agenda'">
         <div class="agenda-view">
           <div class="agenda-filters">
             <select v-model="agendaFilter" class="filter-select">
@@ -239,12 +239,12 @@
       </template>
     </div>
 
-        <!-- Event Modal -->
-        <Modal v-model="showEventModal">
+    <!-- Event Modal -->
+    <Modal v-model="showEventModal">
       <template #header>
         <h3>{{ editingEvent ? 'Edit Appointment' : 'New Appointment' }}</h3>
       </template>
-      
+
       <template #default>
         <form @submit.prevent="saveEvent" class="event-form">
           <div class="form-group">
@@ -368,38 +368,38 @@
       </template>
     </Modal>
 
-     <!-- Delete Confirmation Modal -->
- <Modal 
-   v-model="showDeleteModal"
-   title="Confirm Delete"
->
-   <template #default>
-     <p>Are you sure you want to delete this appointment? This action cannot be undone.</p>
-   </template>
+    <!-- Delete Confirmation Modal -->
+    <Modal 
+      v-model="showDeleteModal"
+      title="Confirm Delete"
+    >
+      <template #default>
+        <p>Are you sure you want to delete this appointment? This action cannot be undone.</p>
+      </template>
 
-   <template #footer>
-     <div class="modal-actions">
-       <button 
-         class="btn btn-secondary"
-         @click="showDeleteModal = false"
-       >
-         Cancel
-       </button>
-       <button 
-         class="btn btn-danger"
-         @click="handleDelete"
-         :disabled="isDeleting"
-       >
-         {{ isDeleting ? 'Deleting...' : 'Delete' }}
-       </button>
-     </div>
-   </template>
- </Modal>
+      <template #footer>
+        <div class="modal-actions">
+          <button 
+            class="btn btn-secondary"
+            @click="showDeleteModal = false"
+          >
+            Cancel
+          </button>
+          <button 
+            class="btn btn-danger"
+            @click="handleDelete"
+            :disabled="isDeleting"
+          >
+            {{ isDeleting ? 'Deleting...' : 'Delete' }}
+          </button>
+        </div>
+      </template>
+    </Modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   format,
@@ -414,6 +414,7 @@ import {
   parseISO,
   addHours,
   addDays,
+  subDays,
   startOfDay,
   endOfDay,
   isSameDay,
@@ -473,7 +474,18 @@ const dateFormat = 'dd/MM/yyyy'
 
 // Computed Properties
 const currentMonthYear = computed(() => {
-  return format(currentDate.value, 'MMMM yyyy')
+  switch (currentView.value) {
+    case 'month':
+      return format(currentDate.value, 'MMMM yyyy')
+    case 'week':
+      const weekStart = startOfWeek(currentDate.value)
+      const weekEnd = endOfWeek(currentDate.value)
+      return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`
+    case 'day':
+      return format(currentDate.value, 'EEEE, MMMM d, yyyy')
+    default:
+      return format(currentDate.value, 'MMMM yyyy')
+  }
 })
 
 const calendarDays = computed(() => {
@@ -560,6 +572,17 @@ const groupedAgendaEvents = computed(() => {
   })
   
   return grouped
+})
+
+// Watchers
+watch(currentDate, () => {
+  console.log('Current date changed:', currentDate.value)
+  fetchEventsForCurrentView()
+})
+
+watch(currentView, (newView) => {
+  console.log('Calendar view changed to:', newView)
+  fetchEventsForCurrentView()
 })
 
 // Utility Functions
@@ -652,6 +675,53 @@ function combineDateAndTime(date: Date, time: string): Date {
   return result
 }
 
+// Navigation Functions
+function previousMonth(): void {
+  currentDate.value = subMonths(currentDate.value, 1)
+  fetchEventsForCurrentView()
+}
+
+function nextMonth(): void {
+  currentDate.value = addMonths(currentDate.value, 1)
+  fetchEventsForCurrentView()
+}
+
+function previousWeek(): void {
+  currentDate.value = subDays(currentDate.value, 7)
+  fetchEventsForCurrentView()
+}
+
+function nextWeek(): void {
+  currentDate.value = addDays(currentDate.value, 7)
+  fetchEventsForCurrentView()
+}
+
+function previousDay(): void {
+  currentDate.value = subDays(currentDate.value, 1)
+  fetchEventsForCurrentView()
+}
+
+function nextDay(): void {
+  currentDate.value = addDays(currentDate.value, 1)
+  fetchEventsForCurrentView()
+}
+
+function handleNavigation(direction: 'previous' | 'next'): void {
+  switch (currentView.value) {
+    case 'month':
+      direction === 'previous' ? previousMonth() : nextMonth()
+      break
+    case 'week':
+      direction === 'previous' ? previousWeek() : nextWeek()
+      break
+    case 'day':
+      direction === 'previous' ? previousDay() : nextDay()
+      break
+    default:
+      break
+  }
+}
+
 // Event Handlers
 function getEventsForDate(date: Date): CalendarEvent[] {
   return eventsStore.events.filter(event => 
@@ -665,22 +735,12 @@ function getEventsForDateAndHour(date: Date, hour: number): CalendarEvent[] {
     try {
       const timeStr = event.startTime || event.time
       const [eventHour] = timeStr.split(':').map(Number)
-      return !isNaN(eventHour) && eventHour === hour
+      return eventHour === hour
     } catch (error) {
-      console.error('Error parsing event time:', error)
+      console.error('Error parsing event time:', error, event)
       return false
     }
   })
-}
-
-function previousMonth(): void {
-  currentDate.value = subMonths(currentDate.value, 1)
-  fetchEventsForCurrentView()
-}
-
-function nextMonth(): void {
-  currentDate.value = addMonths(currentDate.value, 1)
-  fetchEventsForCurrentView()
 }
 
 function selectDate(date: { date: Date }): void {
@@ -786,19 +846,38 @@ async function fetchEventsForCurrentView(): Promise<void> {
     isLoading.value = true
     error.value = null
     
-    const start = currentView.value === 'month' 
-      ? startOfMonth(currentDate.value)
-      : startOfWeek(currentDate.value)
+    let start: Date
+    let end: Date
     
-    const end = currentView.value === 'month'
-      ? endOfMonth(currentDate.value)
-      : endOfWeek(currentDate.value)
+    switch (currentView.value) {
+      case 'month':
+        start = startOfMonth(currentDate.value)
+        end = endOfMonth(currentDate.value)
+        break
+      case 'week':
+        start = startOfWeek(currentDate.value)
+        end = endOfWeek(currentDate.value)
+        break
+      case 'day':
+        start = startOfDay(currentDate.value)
+        end = endOfDay(currentDate.value)
+        break
+      default:
+        start = startOfMonth(currentDate.value)
+        end = endOfMonth(currentDate.value)
+    }
+
+    console.log('Fetching events for view:', {
+      view: currentView.value,
+      start: format(start, 'yyyy-MM-dd'),
+      end: format(end, 'yyyy-MM-dd')
+    })
 
     const filters: EventFilters = {
       start: format(start, 'yyyy-MM-dd'),
       end: format(end, 'yyyy-MM-dd')
     }
-
+    
     await eventsStore.fetchEvents(filters)
   } catch (err) {
     console.error('Error fetching events:', err)
@@ -823,6 +902,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* Container */
 .calendar-container {
   background: var(--surface-1);
   border-radius: var(--radius-lg);
@@ -884,6 +964,34 @@ onMounted(async () => {
 .calendar-actions {
   display: flex;
   gap: var(--space-2);
+}
+
+/* Navigation Buttons */
+.nav-button {
+  background-color: var(--primary-blue);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.nav-button:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.nav-button:active {
+  transform: translateY(0);
+}
+
+.nav-button i {
+  font-size: var(--font-size-lg);
 }
 
 /* Calendar Grid */

@@ -102,7 +102,7 @@ export const useAuthStore = defineStore('auth', () => {
       console.log('No token found during auth check')
       return
     }
-
+  
     try {
       loading.value = true
       token.value = savedToken
@@ -112,7 +112,10 @@ export const useAuthStore = defineStore('auth', () => {
       console.log('Auth check successful')
     } catch (err) {
       console.error('Auth check failed:', err)
-      resetState()
+      // Only reset state for actual auth failures, not API availability issues
+      if (err instanceof Error && err.message !== 'API unavailable') {
+        resetState()
+      }
     } finally {
       loading.value = false
     }
@@ -154,7 +157,10 @@ export const useAuthStore = defineStore('auth', () => {
       token.value = savedToken
       checkAuth().catch(err => {
         console.error('Init auth check failed:', err)
-        resetState()
+        // Only reset state for actual auth failures, not API availability issues
+        if (err instanceof Error && err.message !== 'API unavailable') {
+          resetState()
+        }
       })
     }
   }

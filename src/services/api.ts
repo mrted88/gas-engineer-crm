@@ -67,6 +67,13 @@ const mockCustomers: Customer[] = [
 // Helper function to handle API responses with improved error handling
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
+    // Check if the response is HTML (usually means the API server is down/unreachable)
+    const contentType = response.headers.get('content-type')
+    if (contentType && contentType.includes('text/html')) {
+      console.warn('Received HTML response instead of JSON - API might be unavailable')
+      throw new Error('API unavailable')
+    }
+
     const error = await response.json().catch(() => ({}))
     console.error('API Error:', {
       status: response.status,
@@ -77,33 +84,41 @@ async function handleResponse<T>(response: Response): Promise<T> {
     
     // Handle 401 unauthorized errors
     if (response.status === 401) {
-      console.warn('Authentication error detected')
-      const token = localStorage.getItem('token')
-      const isJobDetailsPage = window.location.pathname.includes('/jobs/')
+      console.warn('Authentication error detected', {
+        path: window.location.pathname,
+        isLoginPage: window.location.pathname === '/login',
+        hasToken: !!localStorage.getItem('token'),
+        isJobPage: window.location.pathname.includes('/jobs/')
+      })
       
-      // Only redirect if:
-      // 1. We're not already on the login page
-      // 2. There's no token (actually logged out)
-      // 3. Not viewing job details
-      if (window.location.pathname !== '/login' && 
-          !token && 
-          !isJobDetailsPage) {
+      // Never redirect if we're on a job details page
+      if (window.location.pathname.includes('/jobs/')) {
+        console.log('On job details page, not redirecting')
+        throw new Error('Authentication required')
+      }
+      
+      // Only redirect if not on login and no token
+      if (window.location.pathname !== '/login' && !localStorage.getItem('token')) {
         localStorage.setItem('redirectPath', window.location.pathname)
         console.log('Redirecting to login page')
         window.location.href = '/login'
       }
-      
-      throw new Error('Authentication required')
     }
     
     throw new Error(error.message || `API request failed: ${response.statusText}`)
   }
 
   try {
+    const contentType = response.headers.get('content-type')
+    if (contentType && contentType.includes('text/html')) {
+      console.warn('Received HTML response instead of JSON - API might be unavailable')
+      throw new Error('API unavailable')
+    }
     return await response.json()
   } catch (error) {
     console.error('Error parsing JSON response:', error)
-    throw new Error('Invalid response format')
+    // Don't reset auth state for parsing errors
+    throw new Error('API unavailable')
   }
 }
 
@@ -236,13 +251,33 @@ export const api = {
     },
 
     async get(id: string) {
-      console.log('API: Getting event:', id)
+      console.log('API: Getting event:', id, {
+        currentPath: window.location.pathname,
+        mockEventsCount: this._mockEvents.length,
+        savedEvents: localStorage.getItem('mockEvents')
+      })
+      
       try {
-        const event = this._mockEvents.find(e => e.id === id)
-        if (!event) {
-          throw new Error('Event not found')
+        // First try to get from localStorage
+        const savedEvents = localStorage.getItem('mockEvents')
+        if (savedEvents) {
+          const events = JSON.parse(savedEvents)
+          const event = events.find((e: CalendarEvent) => e.id === id)
+          if (event) {
+            console.log('Found event in localStorage:', event)
+            return Promise.resolve(event)
+          }
         }
-        return Promise.resolve(event)
+    
+        // Then try to get from memory
+        const event = this._mockEvents.find(e => e.id === id)
+        if (event) {
+          console.log('Found event in memory:', event)
+          return Promise.resolve(event)
+        }
+    
+        console.warn('Event not found:', id)
+        throw new Error('Event not found')
       } catch (error) {
         console.error('Error getting event:', error)
         throw error

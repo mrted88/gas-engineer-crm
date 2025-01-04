@@ -155,19 +155,17 @@ async function loadEventData() {
   error.value = null
   
   try {
-    // Get the auth store
-    const authStore = useAuthStore()
-    
-    // Check auth first
-    if (!authStore.isAuthenticated) {
-      await authStore.checkAuth()
-    }
+    console.log('Loading event data:', {
+      eventId,
+      path: route.fullPath,
+      isAuthenticated: useAuthStore().isAuthenticated
+    })
 
     // First try to find the event in the store
     let eventData = eventsStore.events.find(e => e.id === eventId)
     
-    // If not found in store, fetch it from the API
     if (!eventData) {
+      console.log('Event not found in store, fetching from API')
       eventData = await eventsStore.getEvent(eventId)
     }
 
@@ -176,6 +174,7 @@ async function loadEventData() {
     }
 
     event.value = eventData
+    console.log('Event loaded:', eventData)
 
     // Fetch customer details if we have a customerId
     if (eventData.customerId) {
@@ -183,14 +182,6 @@ async function loadEventData() {
     }
   } catch (err) {
     console.error('Error loading event:', err)
-    if (err instanceof Error && err.message.includes('401')) {
-      // Handle authentication error specifically
-      router.push({
-        name: 'login',
-        query: { redirect: route.fullPath }
-      })
-      return
-    }
     error.value = err instanceof Error ? err.message : 'Failed to load event'
   } finally {
     loading.value = false

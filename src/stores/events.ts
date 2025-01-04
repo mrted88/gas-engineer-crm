@@ -39,20 +39,23 @@ export const useEventsStore = defineStore('events', () => {
       loading.value = true
       error.value = null
       console.log('Store: Fetching events with params:', params)
+      
       const response = await api.events.list(params)
-      console.log('Store: Received events:', response)
-      events.value = response
+      
+      // Ensure dates are properly parsed
+      const processedEvents = response.map(event => ({
+        ...event,
+        date: new Date(event.date),
+        startTime: event.startTime || event.time
+      }))
+      
+      events.value = processedEvents
       console.log('Store: Updated events array:', events.value)
+      
+      return processedEvents
     } catch (err) {
       console.error('Error fetching events:', err)
       error.value = err instanceof Error ? err.message : 'Failed to fetch events'
-      // Use cached events if API call fails
-      if (events.value.length === 0) {
-        const savedEvents = localStorage.getItem('events')
-        if (savedEvents) {
-          events.value = JSON.parse(savedEvents)
-        }
-      }
       throw err
     } finally {
       loading.value = false
