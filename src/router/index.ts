@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { authMiddleware } from '@/middleware/auth'
 import HomeView from '@/views/HomeView.vue'
-import DashboardView from '@/views/DashboardView.vue'
+import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import CustomersView from '@/views/customers/CustomersView.vue'
 import LoginView from '@/views/auth/LoginView.vue'
 import RegisterView from '@/views/auth/RegisterView.vue'
@@ -34,42 +34,90 @@ const router = createRouter({
         public: true
       }
     },
+    // Dashboard and authenticated routes
     {
       path: '/dashboard',
-      name: 'dashboard',
-      component: DashboardView,
-      meta: {
-        requiresAuth: true
-      }
-    },
-    {
-      path: '/customers',
-      name: 'customers',
-      component: CustomersView,
-      meta: {
-        requiresAuth: true,
-        roles: ['admin', 'user']
-      }
-    },
-    {
-      path: '/calendar',
-      name: 'calendar',
-      component: CalendarView,
-      meta: {
-        requiresAuth: true,
-        roles: ['admin', 'user']
-      }
-    },
-    // Add this new route for job details
-    {
-      path: '/jobs/:id',
-      name: 'JobDetails',
-      component: () => import('@/views/JobDetailsView.vue'),
-      props: true,
-      meta: {
-        requiresAuth: true,
-        roles: ['admin', 'user']
-      }
+      component: DashboardLayout,
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          redirect: '/dashboard/diary'
+        },
+        {
+          path: 'diary',
+          name: 'diary',
+          component: CalendarView,
+          meta: {
+            roles: ['admin', 'user']
+          }
+        },
+        {
+          path: 'customers',
+          name: 'customers',
+          component: CustomersView,
+          meta: {
+            roles: ['admin', 'user']
+          }
+        },
+        {
+          path: 'quotes',
+          name: 'quotes',
+          component: () => import('@/views/QuotesView.vue'),
+          meta: {
+            roles: ['admin', 'user']
+          }
+        },
+        {
+          path: 'jobs/:id',
+          name: 'JobDetails',
+          component: () => import('@/views/JobDetailsView.vue'),
+          props: true,
+          meta: {
+            roles: ['admin', 'user']
+          }
+        },
+        {
+          path: 'reminders',
+          name: 'reminders',
+          component: () => import('@/views/RemindersView.vue'),
+          meta: {
+            roles: ['admin', 'user']
+          }
+        },
+        {
+          path: 'inventory',
+          name: 'inventory',
+          component: () => import('@/views/InventoryView.vue'),
+          meta: {
+            roles: ['admin', 'user']
+          }
+        },
+        {
+          path: 'reports',
+          name: 'reports',
+          component: () => import('@/views/ReportsView.vue'),
+          meta: {
+            roles: ['admin', 'user']
+          }
+        },
+        {
+          path: 'accounts',
+          name: 'accounts',
+          component: () => import('@/views/AccountsView.vue'),
+          meta: {
+            roles: ['admin', 'user']
+          }
+        },
+        {
+          path: 'settings',
+          name: 'settings',
+          component: () => import('@/views/SettingsView.vue'),
+          meta: {
+            roles: ['admin', 'user']
+          }
+        }
+      ]
     }
   ]
 })

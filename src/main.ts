@@ -6,6 +6,7 @@ import router from './router'
 import AOS from 'aos'
 import 'aos/dist/aos.css'
 import './assets/main.css'
+import '@fortawesome/fontawesome-free/css/all.css'
 
 // Create Vue app
 const app = createApp(App)

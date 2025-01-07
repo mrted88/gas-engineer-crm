@@ -1,11 +1,10 @@
-// Event status type
-export type EventStatus = 'scheduled' | 'completed' | 'cancelled'
+// Basic event types
+export type EventStatus = 'scheduled' | 'completed' | 'cancelled' | 'rescheduled'
 
-// Main Calendar Event Interface
 export interface CalendarEvent {
   id: string
   title: string
-  date: Date | string
+  date: string | Date
   time: string
   startTime?: string
   duration: number
@@ -17,7 +16,6 @@ export interface CalendarEvent {
   updatedAt: string
 }
 
-// Interface for creating new events
 export interface NewCalendarEvent {
   title: string
   date: Date
@@ -25,110 +23,134 @@ export interface NewCalendarEvent {
   duration: number
   customerId: string
   notes?: string
-}
-
-// Interface for updating events
-export interface UpdateCalendarEvent extends Partial<Omit<CalendarEvent, 'id'>> {
-  updatedAt?: string
-}
-
-// Filter interfaces
-export interface EventFilters {
-  start: string
-  end: string
   status?: EventStatus
-  customerId?: string
 }
 
-// Response interfaces
+export interface UpdateCalendarEvent extends Partial<NewCalendarEvent> {
+  updatedAt: string
+}
+
+// Recurring event types
+export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly'
+
+export interface EventRecurrence {
+  frequency: RecurrenceFrequency
+  interval: number
+  endDate?: Date
+  endAfterOccurrences?: number
+}
+
+export interface RecurringEvent extends CalendarEvent {
+  recurrence: EventRecurrence
+  parentEventId?: string
+  occurrenceNumber?: number
+}
+
+// API response types
 export interface EventResponse {
-  success: boolean
   data: CalendarEvent
-  message?: string
+  message: string
 }
 
 export interface EventsResponse {
-  success: boolean
   data: CalendarEvent[]
-  message?: string
+  meta?: {
+    total: number
+    page: number
+    perPage: number
+  }
 }
 
-// Event validation interface
-export interface EventValidation {
-  isValid: boolean
-  errors: string[]
+// Filter and search types
+export interface EventFilters {
+  start: string
+  end: string
+  customerId?: string
+  status?: EventStatus
+  search?: string
 }
 
-// Event time slot interface
+// Availability and conflict types
 export interface TimeSlot {
   start: string
   end: string
   available: boolean
 }
 
-// Event statistics interface
-export interface EventStats {
-  total: number
-  completed: number
-  cancelled: number
-  scheduled: number
-  averageDuration: number
-}
-
-// Event search params
-export interface EventSearchParams {
-  query?: string
-  startDate?: string
-  endDate?: string
-  status?: EventStatus
-  customerId?: string
-  limit?: number
-  offset?: number
-}
-
-// Event sort options
-export type EventSortField = 'date' | 'time' | 'status' | 'customerName'
-export type EventSortOrder = 'asc' | 'desc'
-
-export interface EventSortOptions {
-  field: EventSortField
-  order: EventSortOrder
-}
-
-// Utility type for event grouping
-export type GroupedEvents = Record<string, CalendarEvent[]>
-
-// Event notification interface
-export interface EventNotification {
-  eventId: string
-  type: 'reminder' | 'update' | 'cancellation'
-  message: string
-  sentAt: string
-  status: 'pending' | 'sent' | 'failed'
-}
-
-// Event recurrence pattern
-export interface EventRecurrence {
-  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly'
-  interval: number
-  endDate?: string
-  endAfterOccurrences?: number
-}
-
-// Event with recurrence
-export interface RecurringEvent extends CalendarEvent {
-  recurrence?: EventRecurrence
-  parentEventId?: string
-}
-
-// Event conflict check
 export interface EventConflict {
   exists: boolean
-  conflictingEvents: CalendarEvent[]
+  conflictingEvents?: CalendarEvent[]
 }
 
-// Event availability check
 export interface EventAvailability {
   date: string
   timeSlots: TimeSlot[]
+}
+
+// Validation types
+export interface EventValidation {
+  isValid: boolean
+  errors: string[]
+}
+
+// Event update options
+export type RecurringEventUpdateOption = 'single' | 'future' | 'all'
+
+// Event drag and drop types
+export interface EventDragInfo {
+  eventId: string
+  newDate: Date
+  newTime: string
+}
+
+// Event view types
+export type CalendarViewType = 'month' | 'week' | 'day' | 'agenda'
+
+// Event date helpers
+export interface CalendarDay {
+  date: Date
+  dayNumber: string
+  isCurrentMonth: boolean
+}
+
+export interface WeekDay {
+  date: Date
+  dayName: string
+  dayNumber: string
+}
+
+// Event styling
+export interface EventStyles {
+  top: string
+  height: string
+  position: 'absolute'
+  left: string
+  right: string
+  zIndex: number
+}
+
+// Event form state
+export interface EventFormState {
+  title: string
+  date: Date
+  time: string
+  duration: number
+  customerId: string
+  notes?: string
+  status?: EventStatus
+  recurrence?: EventRecurrence
+}
+
+// Event error types
+export interface EventError {
+  message: string
+  code?: string
+  field?: string
+}
+
+// Event notification types
+export interface EventNotification {
+  type: 'success' | 'error' | 'warning' | 'info'
+  message: string
+  duration?: number
 }
