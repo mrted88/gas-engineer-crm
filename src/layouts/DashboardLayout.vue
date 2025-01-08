@@ -1,226 +1,231 @@
 <template>
-    <div class="dashboard-container">
-      <aside class="sidebar" :class="{ 
-        'sidebar-collapsed': isSidebarCollapsed,
-        'sidebar-mobile-open': !isSidebarCollapsed 
-      }">
-        <div class="sidebar-header">
-          <img src="@/assets/logo.svg" alt="Logo" class="logo" />
-          <button class="collapse-btn" @click="toggleSidebar">
-            <i :class="isSidebarCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'"></i>
-          </button>
-        </div>
-  
-        <nav class="sidebar-nav">
-          <!-- Regular nav items -->
-          <RouterLink
-            v-for="item in navigationItems"
-            :key="item.path"
-            :to="item.path"
-            class="nav-item"
-            :class="{ active: currentRoute.path.startsWith(item.path) }"
-          >
-            <i :class="`fas ${item.icon}`"></i>
-            <span v-if="!isSidebarCollapsed">{{ item.name }}</span>
-          </RouterLink>
-  
-          <!-- Reminders dropdown -->
-          <div 
-            class="nav-item dropdown"
-            :class="{ 
-              active: isRemindersActive,
-              'dropdown-open': isRemindersOpen 
-            }"
-            @click="toggleReminders"
-          >
-            <div class="nav-item-content">
-              <i class="fas fa-bell"></i>
-              <span v-if="!isSidebarCollapsed">Reminders</span>
-              <i 
-                v-if="!isSidebarCollapsed" 
-                class="fas fa-chevron-down dropdown-icon"
-                :class="{ 'rotated': isRemindersOpen }"
-              ></i>
-            </div>
-            
-            <div class="dropdown-content" v-if="!isSidebarCollapsed">
-              <RouterLink
-                v-for="child in remindersItems"
-                :key="child.path"
-                :to="child.path"
-                class="dropdown-item"
-                :class="{ active: currentRoute.path === child.path }"
-              >
-                <i :class="`fas ${child.icon}`"></i>
-                {{ child.name }}
-              </RouterLink>
-            </div>
+  <div class="dashboard-container">
+    <aside class="sidebar" :class="{ 
+      'sidebar-collapsed': isSidebarCollapsed,
+      'sidebar-mobile-open': !isSidebarCollapsed 
+    }">
+      <div class="sidebar-header">
+        <img src="@/assets/logo.svg" alt="Logo" class="logo" />
+        <button class="collapse-btn" @click="toggleSidebar">
+          <i :class="isSidebarCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'"></i>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <!-- Regular nav items -->
+        <RouterLink
+          v-for="item in navigationItems"
+          :key="item.path"
+          :to="item.path"
+          class="nav-item"
+          :class="{ active: currentRoute.path.startsWith(item.path) }"
+        >
+          <i :class="`fas ${item.icon}`"></i>
+          <span v-if="!isSidebarCollapsed">{{ item.name }}</span>
+        </RouterLink>
+
+        <!-- Reminders dropdown -->
+        <div 
+          class="nav-item dropdown"
+          :class="{ 
+            active: isRemindersActive,
+            'dropdown-open': isRemindersOpen 
+          }"
+          @click="toggleReminders"
+        >
+          <div class="nav-item-content">
+            <i class="fas fa-bell"></i>
+            <span v-if="!isSidebarCollapsed">Reminders</span>
+            <i 
+              v-if="!isSidebarCollapsed" 
+              class="fas fa-chevron-down dropdown-icon"
+              :class="{ 'rotated': isRemindersOpen }"
+            ></i>
           </div>
-        </nav>
-      </aside>
-  
-      <main class="main-content">
-        <!-- UPDATED: New header with user dropdown -->
-        <header class="content-header">
-          <button 
-            class="mobile-menu-btn"
-            @click="toggleSidebar"
-          >
-            <i class="fas fa-bars"></i>
+          
+          <div class="dropdown-content" v-if="!isSidebarCollapsed">
+            <RouterLink
+              v-for="child in remindersItems"
+              :key="child.path"
+              :to="child.path"
+              class="dropdown-item"
+              :class="{ active: currentRoute.path === child.path }"
+            >
+              <i :class="`fas ${child.icon}`"></i>
+              {{ child.name }}
+            </RouterLink>
+          </div>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      <header class="content-header">
+        <button 
+          class="mobile-menu-btn"
+          @click="toggleSidebar"
+        >
+          <i class="fas fa-bars"></i>
+        </button>
+
+        <img src="@/assets/logo.svg" alt="Logo" class="header-logo" />
+
+        <div class="user-dropdown" @click="toggleUserMenu" ref="userMenuRef">
+          <button class="user-dropdown-button">
+            <i class="fas fa-user-circle"></i>
+            <span>{{ currentUser?.name }}</span>
+            <i class="fas fa-chevron-down"></i>
           </button>
-  
-          <img src="@/assets/logo.svg" alt="Logo" class="header-logo" />
-  
-          <div class="user-dropdown" @click="toggleUserMenu" ref="userMenuRef">
-            <button class="user-dropdown-button">
-              <i class="fas fa-user-circle"></i>
-              <span>{{ currentUser?.name }}</span>
-              <i class="fas fa-chevron-down"></i>
+          
+          <div class="user-dropdown-menu" v-if="isUserMenuOpen">
+            <div class="user-info">
+              <strong>{{ currentUser?.name }}</strong>
+              <span>{{ currentUser?.email }}</span>
+            </div>
+            <div class="dropdown-divider"></div>
+            <button class="dropdown-item" @click="logout">
+              <i class="fas fa-sign-out-alt"></i>
+              Logout
             </button>
-            
-            <div class="user-dropdown-menu" v-if="isUserMenuOpen">
-              <div class="user-info">
-                <strong>{{ currentUser?.name }}</strong>
-                <span>{{ currentUser?.email }}</span>
-              </div>
-              <div class="dropdown-divider"></div>
-              <button class="dropdown-item" @click="logout">
-                <i class="fas fa-sign-out-alt"></i>
-                Logout
-              </button>
-            </div>
           </div>
-        </header>
-  
-        <div class="content-body">
-          <RouterView />
         </div>
-      </main>
-  
-      <!-- Overlay for mobile -->
-      <div 
-        v-if="!isSidebarCollapsed" 
-        class="sidebar-overlay"
-        @click="toggleSidebar"
-      ></div>
-    </div>
-  </template>
-  
-  <script setup lang="ts">
-  // UPDATED: Added new imports
-  import { ref, computed, onMounted, onUnmounted } from 'vue'
-  import { useRoute, useRouter } from 'vue-router'
-  import { useAuthStore } from '@/stores/auth'
-  
-  const route = useRoute()
-  const router = useRouter()
-  const authStore = useAuthStore()
-  const isSidebarCollapsed = ref(true)
-  const isRemindersOpen = ref(false)
-  
-  // NEW: User dropdown state
-  const isUserMenuOpen = ref(false)
-  const userMenuRef = ref<HTMLElement | null>(null)
-  
-  const currentUser = computed(() => authStore.user)
-  const currentRoute = computed(() => route)
-  
-  const isRemindersActive = computed(() => 
-    route.path.startsWith('/reminders')
-  )
-  
-  // NEW: Toggle user menu function
-  function toggleUserMenu() {
-    isUserMenuOpen.value = !isUserMenuOpen.value
+      </header>
+
+      <div class="content-body">
+        <Suspense>
+          <template #default>
+            <RouterView />
+          </template>
+          <template #fallback>
+            <div class="loading-state">
+              <div class="spinner"></div>
+              <p>Loading...</p>
+            </div>
+          </template>
+        </Suspense>
+      </div>
+    </main>
+
+    <!-- Overlay for mobile -->
+    <div 
+      v-if="!isSidebarCollapsed" 
+      class="sidebar-overlay"
+      @click="toggleSidebar"
+    ></div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter, RouterView } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
+const isSidebarCollapsed = ref(true)
+const isRemindersOpen = ref(false)
+
+// User dropdown state
+const isUserMenuOpen = ref(false)
+const userMenuRef = ref<HTMLElement | null>(null)
+
+const currentUser = computed(() => authStore.user)
+const currentRoute = computed(() => route)
+
+const isRemindersActive = computed(() => 
+  route.path.startsWith('/reminders')
+)
+
+function toggleUserMenu() {
+  isUserMenuOpen.value = !isUserMenuOpen.value
+}
+
+function handleClickOutside(event: MouseEvent) {
+  if (userMenuRef.value && !userMenuRef.value.contains(event.target as Node)) {
+    isUserMenuOpen.value = false
   }
-  
-  // NEW: Handle clicking outside user menu
-  function handleClickOutside(event: MouseEvent) {
-    if (userMenuRef.value && !userMenuRef.value.contains(event.target as Node)) {
-      isUserMenuOpen.value = false
-    }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+const remindersItems = [
+  { 
+    name: 'Services', 
+    path: '/reminders/services',
+    icon: 'fa-wrench'
+  },
+  { 
+    name: 'LGSC', 
+    path: '/reminders/lgsc',
+    icon: 'fa-fire'
   }
-  
-  // NEW: Setup and cleanup click outside listener
-  onMounted(() => {
-    document.addEventListener('click', handleClickOutside)
-  })
-  
-  onUnmounted(() => {
-    document.removeEventListener('click', handleClickOutside)
-  })
-  
-  const remindersItems = [
-    { 
-      name: 'Services', 
-      path: '/reminders/services',
-      icon: 'fa-wrench'
-    },
-    { 
-      name: 'LGSC', 
-      path: '/reminders/lgsc',
-      icon: 'fa-fire'
-    }
-  ]
-  
-  const navigationItems = [
-    {
-      name: 'Diary',
-      icon: 'fa-calendar-alt',
-      path: '/diary'
-    },
-    {
-      name: 'Customers',
-      icon: 'fa-user-friends',
-      path: '/customers'
-    },
-    {
-      name: 'Quotes',
-      icon: 'fa-file-signature',
-      path: '/quotes'
-    },
-    {
-      name: 'Jobs',
-      icon: 'fa-hard-hat',
-      path: '/jobs'
-    },
-    {
-      name: 'Inventory',
-      icon: 'fa-boxes',
-      path: '/inventory'
-    },
-    {
-      name: 'Reports',
-      icon: 'fa-clipboard-list',
-      path: '/reports'
-    },
-    {
-      name: 'Accounts',
-      icon: 'fa-piggy-bank',
-      path: '/accounts'
-    },
-    {
-      name: 'Settings',
-      icon: 'fa-cog',
-      path: '/settings'
-    }
-  ]
-  
-  function toggleSidebar() {
-    isSidebarCollapsed.value = !isSidebarCollapsed.value
+]
+
+const navigationItems = [
+  {
+    name: 'Diary',
+    icon: 'fa-calendar-alt',
+    path: '/diary'
+  },
+  {
+    name: 'Customers',
+    icon: 'fa-user-friends',
+    path: '/customers'
+  },
+  {
+    name: 'Quotes',
+    icon: 'fa-file-signature',
+    path: '/quotes'
+  },
+  {
+    name: 'Jobs',
+    icon: 'fa-hard-hat',
+    path: '/jobs'
+  },
+  {
+    name: 'Inventory',
+    icon: 'fa-boxes',
+    path: '/inventory'
+  },
+  {
+    name: 'Reports',
+    icon: 'fa-clipboard-list',
+    path: '/reports'
+  },
+  {
+    name: 'Accounts',
+    icon: 'fa-piggy-bank',
+    path: '/accounts'
+  },
+  {
+    name: 'Settings',
+    icon: 'fa-cog',
+    path: '/settings'
   }
-  
-  function toggleReminders() {
-    if (!isSidebarCollapsed.value) {
-      isRemindersOpen.value = !isRemindersOpen.value
-    }
+]
+
+function toggleSidebar() {
+  isSidebarCollapsed.value = !isSidebarCollapsed.value
+}
+
+function toggleReminders() {
+  if (!isSidebarCollapsed.value) {
+    isRemindersOpen.value = !isRemindersOpen.value
   }
-  
-  async function logout() {
-    await authStore.logout()
-    router.push('/login')
-  }
-  </script>
+}
+
+async function logout() {
+  await authStore.logout()
+  router.push('/login')
+}
+</script>
 
 <style scoped>
 .dashboard-container {
@@ -248,6 +253,30 @@
 
 .mobile-menu-btn:hover {
   background: #3a5d8f;
+}
+
+/* Loading state */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 2rem;
+  gap: 1rem;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--border-color);
+  border-top-color: var(--primary-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Overlay */
@@ -297,7 +326,7 @@
   transform: scale(0.8);
 }
 
-/* NEW: Header styles */
+/* Header styles */
 .content-header {
   display: flex;
   align-items: center;
@@ -312,7 +341,7 @@
   width: auto;
 }
 
-/* NEW: User dropdown styles */
+/* User dropdown styles */
 .user-dropdown {
   position: relative;
 }

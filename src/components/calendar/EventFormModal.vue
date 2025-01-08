@@ -46,7 +46,7 @@
             >
               <option value="">Select time</option>
               <option 
-                v-for="slot in availableTimeSlots"
+                v-for="slot in timeSlots"
                 :key="slot.start"
                 :value="slot.start"
                 :disabled="!slot.available"
@@ -239,7 +239,7 @@ import type {
 function convertToFormData(event: CalendarEvent): NewCalendarEvent {
   return {
     title: event.title,
-    date: new Date(event.date), // Convert string date to Date object
+    date: new Date(event.date),
     time: event.time,
     duration: event.duration,
     customerId: event.customerId,
@@ -290,6 +290,33 @@ const recurrencePattern = ref<EventRecurrence>({
 })
 const error = ref<string | null>(null)
 const dateFormat = 'dd/MM/yyyy'
+
+// Computed
+const timeSlots = computed(() => {
+  const slots: TimeSlot[] = []
+  const start = 8 // 8 AM
+  const end = 18 // 6 PM
+  
+  for (let hour = start; hour < end; hour++) {
+    for (let minute = 0; minute < 60; minute += 15) {
+      const formattedHour = hour.toString().padStart(2, '0')
+      const formattedMinute = minute.toString().padStart(2, '0')
+      const time = `${formattedHour}:${formattedMinute}`
+      
+      slots.push({
+        start: time,
+        end: time,
+        available: true
+      })
+    }
+  }
+  
+  // Merge with actual availability data
+  return slots.map(slot => {
+    const actualSlot = props.availableTimeSlots.find(s => s.start === slot.start)
+    return actualSlot || slot
+  })
+})
 
 // Methods
 function handleSubmit() {
@@ -350,7 +377,8 @@ function resetForm() {
 }
 
 function formatTimeSlot(slot: TimeSlot): string {
-  return format(new Date(`2000-01-01T${slot.start}`), 'h:mm a')
+  const date = new Date(`2000-01-01T${slot.start}`)
+  return format(date, 'h:mm a') // e.g., "9:15 AM"
 }
 
 // Watchers

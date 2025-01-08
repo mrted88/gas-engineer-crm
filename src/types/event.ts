@@ -1,5 +1,5 @@
 // Basic event types
-export type EventStatus = 'scheduled' | 'completed' | 'cancelled' | 'rescheduled'
+export type EventStatus = 'scheduled' | 'completed' | 'cancelled' | 'rescheduled' | 'deleted'
 
 export interface CalendarEvent {
   id: string

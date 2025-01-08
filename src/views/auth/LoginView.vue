@@ -78,12 +78,14 @@ const password = ref('')
 const rememberMe = ref(false)
 const showPassword = ref(false)
 const isLoading = ref(false)
+const error = ref('')
 
 const handleLogin = async () => {
   try {
     isLoading.value = true
+    error.value = ''
     
-    // Use the auth store to login
+    console.log('Attempting login...') // Debug log
     await authStore.login({
       email: email.value,
       password: password.value
@@ -92,16 +94,26 @@ const handleLogin = async () => {
     // Handle remember me
     if (rememberMe.value) {
       localStorage.setItem('rememberMe', 'true')
+      localStorage.setItem('rememberedEmail', email.value)
+    } else {
+      localStorage.removeItem('rememberMe')
+      localStorage.removeItem('rememberedEmail')
     }
 
-    // If we get here, login was successful
-    router.push('/dashboard')
-  } catch (error) {
-    console.error('Login failed:', error)
-    // You might want to show an error message to the user here
+    console.log('Login successful, redirecting...') // Debug log
+    await router.push('/dashboard')
+  } catch (err) {
+    console.error('Login failed:', err)
+    error.value = 'Invalid email or password. Please try again.'
   } finally {
     isLoading.value = false
   }
+}
+
+// Initialize remember me if previously set
+if (localStorage.getItem('rememberMe') === 'true') {
+  rememberMe.value = true
+  email.value = localStorage.getItem('rememberedEmail') || ''
 }
 </script>
 

@@ -38,50 +38,42 @@
   </form>
 </template>
 
-<script lang="ts">
-import { defineComponent } from '@vue/runtime-core'
+<script setup lang="ts">
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { authService } from '@/services'
+import { useAuthStore } from '@/stores/auth'
 
-export default defineComponent({
-  name: 'LoginForm',
-  setup() {
-    const router = useRouter()
-    return { router }
-  },
-  data() {
-    return {
-      formData: {
-        email: '',
-        password: '',
-      },
-      isLoading: false,
-      error: '',
-    }
-  },
-  methods: {
-    async handleSubmit() {
-      this.isLoading = true
-      this.error = ''
+const router = useRouter()
+const authStore = useAuthStore()
 
-      try {
-        const response = await authService.login(this.formData)
-        console.log('Login successful:', response)
-
-        // Store the token
-        localStorage.setItem('token', response.token)
-
-        // Redirect to customers page
-        this.router.push('/customers')
-      } catch (err) {
-        this.error = 'Login failed. Please check your credentials.'
-        console.error('Login error:', err)
-      } finally {
-        this.isLoading = false
-      }
-    },
-  },
+const formData = reactive({
+  email: '',
+  password: ''
 })
+
+const isLoading = ref(false)
+const error = ref('')
+
+async function handleSubmit() {
+  console.log('Form submitted with:', formData)
+  
+  try {
+    isLoading.value = true
+    error.value = ''
+    
+    console.log('Attempting login...')
+    await authStore.login(formData)
+    
+    console.log('Login successful, redirecting...')
+    await router.push('/dashboard')
+  } catch (err) {
+    console.log('Login failed:', err)
+    error.value = 'Login failed. Please check your credentials.'
+    console.error('Login error:', err)
+  } finally {
+    isLoading.value = false
+  }
+}
 </script>
 
 <style scoped>

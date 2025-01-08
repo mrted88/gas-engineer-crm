@@ -17,29 +17,29 @@ export async function authMiddleware(
 ) {
   const authStore = useAuthStore()
   
+  console.log('Auth middleware running for route:', to.path)
+  console.log('Auth status:', authStore.isAuthenticated)
+  
   try {
-    // Special handling for event details pages
-    const isEventDetailsPage = to.name === 'job-details' || to.path.includes('/jobs/')
-    
-    // Check authentication status if not on public route
-    if (!to.meta.public && !authStore.isAuthenticated) {
+    // Always check auth status unless it's a public route
+    if (!to.meta.public) {
+      console.log('Checking auth status...')
       await authStore.checkAuth()
     }
 
-    // Handle protected routes
-    if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-      // Store the intended destination
-      const redirect = isEventDetailsPage ? to.fullPath : undefined
-      next({
-        name: 'login',
-        query: redirect ? { redirect } : undefined
-      })
+    // If trying to access login/register while authenticated
+    if (authStore.isAuthenticated && ['login', 'register'].includes(to.name as string)) {
+      console.log('Already authenticated, redirecting to dashboard')
+      next('/dashboard')
       return
     }
 
-    // Handle auth routes when already authenticated
-    if (authStore.isAuthenticated && (to.name === 'login' || to.name === 'register')) {
-      next({ name: 'dashboard' })
+    // If trying to access protected route without auth
+    if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+      console.log('Auth required but not authenticated')
+      // Save the intended destination
+      localStorage.setItem('redirectPath', to.fullPath)
+      next('/login')
       return
     }
 
@@ -47,29 +47,22 @@ export async function authMiddleware(
     if (to.meta.roles && authStore.user?.role) {
       const hasRequiredRole = to.meta.roles.includes(authStore.user.role)
       if (!hasRequiredRole) {
+        console.log('Unauthorized: missing required role')
         next({ 
           name: 'home', 
-          query: { 
-            error: 'unauthorized',
-            message: 'You do not have permission to access this page'
-          }
+          query: { error: 'unauthorized' }
         })
         return
       }
     }
 
+    // Allow navigation
+    console.log('Navigation allowed')
     next()
   } catch (error) {
     console.error('Auth middleware error:', error)
-    if (!authStore.isAuthenticated) {
-      next({ 
-        name: 'login',
-        query: { 
-          redirect: to.fullPath,
-          error: 'auth',
-          message: 'Please log in to continue'
-        }
-      })
+    if (!to.meta.public) {
+      next('/login')
       return
     }
     next()

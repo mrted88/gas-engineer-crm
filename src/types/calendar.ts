@@ -1,5 +1,5 @@
 // Basic Types
-export type EventStatus = 'scheduled' | 'completed' | 'cancelled' | 'rescheduled'
+export type EventStatus = 'scheduled' | 'completed' | 'cancelled' | 'rescheduled' | 'deleted'
 export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly'
 export type ViewType = 'month' | 'week' | 'day' | 'agenda'
 

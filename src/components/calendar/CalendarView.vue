@@ -108,8 +108,10 @@ import type {
   ViewType as CalendarViewType,
   EventFormState,
   NewCalendarEvent,
+  UpdateCalendarEvent,
   EventRecurrence,
-  TimeSlot
+  TimeSlot,
+  EventStatus
 } from '@/types/calendar'
 import WeekView from './WeekView.vue'
 import MonthView from './MonthView.vue'
@@ -136,6 +138,7 @@ const availableTimeSlots = ref<TimeSlot[]>([])
 
 // Constants
 const views: CalendarViewType[] = ['month', 'week', 'day', 'agenda']
+const VISIBLE_STATUSES: EventStatus[] = ['scheduled', 'completed', 'rescheduled']
 
 // Computed
 const currentMonthYear = computed(() => {
@@ -143,7 +146,9 @@ const currentMonthYear = computed(() => {
 })
 
 const filteredEvents = computed(() => {
-  return eventsStore.events
+  return eventsStore.events.filter(event => 
+    VISIBLE_STATUSES.includes(event.status)
+  )
 })
 
 const { isLoading, error } = eventsStore
@@ -179,7 +184,18 @@ async function handleEventSave(
   try {
     isSubmitting.value = true
     if (selectedEvent.value) {
-      await eventsStore.updateEvent(selectedEvent.value.id, eventData)
+      // Create a type-safe update object
+      const updateData = {
+        title: eventData.title,
+        date: eventData.date,
+        time: eventData.time,
+        duration: eventData.duration,
+        customerId: eventData.customerId,
+        notes: eventData.notes,
+        status: eventData.status,
+        updatedAt: new Date().toISOString()
+      }
+      await eventsStore.updateEvent(selectedEvent.value.id, updateData)
     } else if (recurrence) {
       await eventsStore.createRecurringEvent(eventData, recurrence)
     } else {
