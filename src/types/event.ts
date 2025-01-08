@@ -14,6 +14,8 @@ export interface CalendarEvent {
   notes?: string
   createdAt: string
   updatedAt: string
+  stopPropagation?: () => void
+  parentEventId?: string
 }
 
 export interface NewCalendarEvent {
@@ -27,7 +29,9 @@ export interface NewCalendarEvent {
 }
 
 export interface UpdateCalendarEvent extends Partial<NewCalendarEvent> {
-  updatedAt: string
+  updatedAt?: string
+  _recurringUpdate?: 'single' | 'future' | 'all'
+  parentEventId?: string
 }
 
 // Recurring event types
@@ -68,6 +72,14 @@ export interface EventFilters {
   customerId?: string
   status?: EventStatus
   search?: string
+}
+
+export interface EventSearchParams {
+  query?: string
+  status?: EventStatus
+  customerId?: string
+  startDate?: string
+  endDate?: string
 }
 
 // Availability and conflict types

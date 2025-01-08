@@ -1,55 +1,55 @@
 <template>
-    <div v-if="error" class="error-boundary">
-      <div class="error-content">
-        <i class="fas fa-exclamation-circle error-icon"></i>
-        <h2>{{ error.name || 'Error' }}</h2>
-        <p>{{ error.message || 'An unexpected error occurred.' }}</p>
-        <div class="error-actions">
-          <button class="btn btn-secondary" @click="retry">
-            <i class="fas fa-redo"></i> Try Again
-          </button>
-          <button class="btn btn-primary" @click="reset">
-            <i class="fas fa-home"></i> Return Home
-          </button>
-        </div>
-        <details v-if="error.stack && isDevelopment" class="error-details">
-          <summary>Technical Details</summary>
-          <pre>{{ error.stack }}</pre>
-        </details>
+  <div v-if="error" class="error-boundary">
+    <div class="error-content">
+      <i class="fas fa-exclamation-circle error-icon"></i>
+      <h2>{{ error.name || 'Error' }}</h2>
+      <p>{{ error.message || 'An unexpected error occurred.' }}</p>
+      <div class="error-actions">
+        <button class="btn btn-secondary" @click="retry">
+          <i class="fas fa-redo"></i> Try Again
+        </button>
+        <button class="btn btn-primary" @click="reset">
+          <i class="fas fa-home"></i> Return Home
+        </button>
       </div>
+      <details v-if="error.stack && isDevelopment" class="error-details">
+        <summary>Technical Details</summary>
+        <pre>{{ error.stack }}</pre>
+      </details>
     </div>
-    <slot v-else></slot>
-  </template>
-  
-  <script setup lang="ts">
-  import { ref, onErrorCaptured } from 'vue'
-  import { useRouter } from 'vue-router'
-  
-  const props = defineProps<{
-    onError?: (error: Error) => void
-  }>()
-  
-  const router = useRouter()
-  const error = ref<Error | null>(null)
-  const isDevelopment = import.meta.env.DEV
-  
-  const retry = () => {
-    error.value = null
-    if (props.onError) {
-      props.onError(error.value as Error)
-    }
+  </div>
+  <slot v-else></slot>
+</template>
+
+<script setup lang="ts">
+import { ref, onErrorCaptured } from 'vue'
+import { useRouter } from 'vue-router'
+
+const props = defineProps<{
+  onError?: (error: Error) => void
+}>()
+
+const router = useRouter()
+const error = ref<Error | null>(null)
+const isDevelopment = import.meta.env.DEV
+
+const retry = () => {
+  if (error.value && props.onError) {
+    props.onError(error.value)
   }
-  
-  const reset = () => {
-    error.value = null
-    router.push('/')
-  }
-  
-  onErrorCaptured((err: Error) => {
-    error.value = err
-    return false
-  })
-  </script>
+  error.value = null
+}
+
+const reset = () => {
+  error.value = null
+  router.push('/')
+}
+
+onErrorCaptured((err: Error) => {
+  error.value = err
+  return false
+})
+</script>
   
   <style scoped>
   .error-boundary {
