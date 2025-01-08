@@ -41,7 +41,7 @@
 <script lang="ts">
 import { defineComponent } from '@vue/runtime-core'
 import { useRouter } from 'vue-router'
-import { authService } from '@/services/api'
+import { authService } from '@/services'
 
 export default defineComponent({
   name: 'LoginForm',

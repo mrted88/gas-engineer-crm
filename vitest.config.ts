@@ -3,7 +3,8 @@
 import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import * as path from 'path'
-import type { UserConfigExport, Plugin } from 'vitest/config'
+import type { UserConfigExport } from 'vite'
+import type { Plugin } from 'vite'
 
 const vuePlugin = vue as unknown as () => Plugin
 

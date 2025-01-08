@@ -36,55 +36,52 @@
   </form>
 </template>
 
-<script lang="ts">
-import { defineComponent } from '@vue/runtime-core'
-import { authService } from '@/services/api'
+<script setup lang="ts">
+import { ref, reactive } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { api } from '@/services/api'
+
+const router = useRouter()
+const authStore = useAuthStore()
 
 interface FormData {
   email: string
   password: string
 }
 
-interface ComponentData {
-  formData: FormData
-  isLoading: boolean
-  error: string
-}
-
-export default defineComponent({
-  name: 'LoginForm',
-  data(): ComponentData {
-    return {
-      formData: {
-        email: '',
-        password: '',
-      },
-      isLoading: false,
-      error: '',
-    }
-  },
-  methods: {
-    async handleSubmit(): Promise<void> {
-      this.isLoading = true
-      this.error = ''
-
-      try {
-        const response = await authService.login(this.formData)
-        console.log('Login successful:', response)
-
-        // Store the token
-        localStorage.setItem('token', response.token)
-
-        // TODO: Redirect to dashboard or home page
-      } catch (err) {
-        this.error = 'Login failed. Please check your credentials.'
-        console.error('Login error:', err)
-      } finally {
-        this.isLoading = false
-      }
-    },
-  },
+const formData = reactive<FormData>({
+  email: '',
+  password: ''
 })
+
+const isLoading = ref(false)
+const error = ref('')
+
+async function handleSubmit(): Promise<void> {
+  isLoading.value = true
+  error.value = ''
+
+  try {
+    const response = await api.auth.login(formData.email, formData.password)
+    
+    // Store the token
+    localStorage.setItem('token', response.token)
+    
+    // Update auth store
+    await authStore.setUser(response.user)
+    
+    // Redirect to dashboard or saved path
+    const redirectPath = localStorage.getItem('redirectPath') || '/'
+    localStorage.removeItem('redirectPath')
+    await router.push(redirectPath)
+  } catch (err) {
+    error.value = 'Login failed. Please check your credentials.'
+    console.error('Login error:', err)
+  } finally {
+    isLoading.value = false
+  }
+}
 </script>
 
 <style scoped>

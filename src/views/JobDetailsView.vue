@@ -135,7 +135,7 @@ async function updateStatus(newStatus: 'completed' | 'cancelled') {
   try {
     loading.value = true
     await eventsStore.updateEventStatus(event.value.id, newStatus)
-    await loadEventData() // Reload the event data
+    await loadEventData()
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to update status'
   } finally {
@@ -143,7 +143,6 @@ async function updateStatus(newStatus: 'completed' | 'cancelled') {
   }
 }
 
-// In the loadEventData function, update it to:
 async function loadEventData() {
   const eventId = route.params.id as string
   if (!eventId) {
@@ -155,28 +154,13 @@ async function loadEventData() {
   error.value = null
   
   try {
-    console.log('Loading event data:', {
-      eventId,
-      path: route.fullPath,
-      isAuthenticated: useAuthStore().isAuthenticated
-    })
-
-    // First try to find the event in the store
-    let eventData = eventsStore.events.find(e => e.id === eventId)
-    
-    if (!eventData) {
-      console.log('Event not found in store, fetching from API')
-      eventData = await eventsStore.getEvent(eventId)
-    }
-
+    const eventData = await eventsStore.getEvent(eventId)
     if (!eventData) {
       throw new Error('Event not found')
     }
 
     event.value = eventData
-    console.log('Event loaded:', eventData)
-
-    // Fetch customer details if we have a customerId
+    
     if (eventData.customerId) {
       customer.value = await customersStore.getCustomer(eventData.customerId)
     }

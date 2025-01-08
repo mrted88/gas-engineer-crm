@@ -73,6 +73,40 @@ export const useEventsStore = defineStore('events', {
       }
     },
 
+    async getEvent(id: string): Promise<CalendarEvent | null> {
+      try {
+        this.isLoading = true
+        const event = await api.events.get(id)
+        return event
+      } catch (error) {
+        this.error = error as Error
+        throw error
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async updateEventStatus(id: string, status: 'completed' | 'cancelled'): Promise<void> {
+      try {
+        this.isLoading = true
+        const result = await api.events.updateStatus(id, status)
+        
+        // Update the event in the local store
+        const index = this.events.findIndex(e => e.id === id)
+        if (index !== -1) {
+          this.events[index] = {
+            ...this.events[index],
+            status: result.status
+          }
+        }
+      } catch (error) {
+        this.error = error as Error
+        throw error
+      } finally {
+        this.isLoading = false
+      }
+    },
+
     async updateEvent(id: string, data: UpdateCalendarEvent): Promise<CalendarEvent> {
       try {
         const updatedEvent = await api.events.update(id, data)

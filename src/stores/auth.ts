@@ -45,15 +45,23 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => user.value?.role === 'admin')
 
   // Actions
+  function setToken(newToken: string) {
+    token.value = newToken
+    localStorage.setItem('token', newToken)
+  }
+
+  function setCurrentUser(newUser: User) {
+    user.value = newUser
+  }
+
   async function login(credentials: LoginCredentials) {
     try {
       loading.value = true
       error.value = null
       console.log('Attempting login...')
       const response = await api.auth.login(credentials.email, credentials.password)
-      user.value = response.user
-      token.value = response.token
-      localStorage.setItem('token', response.token)
+      setCurrentUser(response.user)
+      setToken(response.token)
       console.log('Login successful')
       return response
     } catch (err) {
@@ -70,9 +78,8 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = true
       error.value = null
       const response = await api.auth.register(data)
-      user.value = response.user
-      token.value = response.token
-      localStorage.setItem('token', response.token)
+      setCurrentUser(response.user)
+      setToken(response.token)
       return response
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Registration failed'
@@ -105,10 +112,10 @@ export const useAuthStore = defineStore('auth', () => {
   
     try {
       loading.value = true
-      token.value = savedToken
+      setToken(savedToken)
       console.log('Checking authentication...')
       const userData = await api.auth.getProfile()
-      user.value = userData
+      setCurrentUser(userData)
       console.log('Auth check successful')
     } catch (err) {
       console.error('Auth check failed:', err)
@@ -126,7 +133,7 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = true
       error.value = null
       const updatedUser = await api.auth.updateProfile(data)
-      user.value = updatedUser
+      setCurrentUser(updatedUser)
       return updatedUser
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Profile update failed'
@@ -154,7 +161,7 @@ export const useAuthStore = defineStore('auth', () => {
     const savedToken = localStorage.getItem('token')
     if (savedToken) {
       console.log('Found saved token')
-      token.value = savedToken
+      setToken(savedToken)
       checkAuth().catch(err => {
         console.error('Init auth check failed:', err)
         // Only reset state for actual auth failures, not API availability issues
@@ -184,6 +191,8 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     isAdmin,
     // Actions
+    setToken,
+    setCurrentUser,
     login,
     register,
     logout,
