@@ -18,19 +18,20 @@
 
       <!-- Day Body -->
       <div class="day-body">
-        <div 
-          v-for="hour in hours" 
+        <CalendarCell
+          v-for="hour in hours"
           :key="hour"
-          class="hour-slot"
+          :date="currentDate"
+          :hour="hour"
           :class="{
             'unavailable': !isTimeSlotAvailable(hour),
             'has-conflict': hasTimeSlotConflict(hour),
             'drag-over': isDragOver === hour
           }"
-          @click="$emit('date-click', currentDate, hour)"
+          @click="handleDateClick"
           @dragover.prevent="handleDragOver(hour)"
           @dragleave="handleDragLeave"
-          @drop="(e: DragEvent) => handleDrop(e, hour)"
+          @drop="handleEventDrop"
         >
           <CalendarEventComponent
             v-for="event in getEventsForHour(hour)"
@@ -42,7 +43,7 @@
             @dragend="handleDragEnd"
             draggable="true"
           />
-        </div>
+        </CalendarCell>
       </div>
     </div>
 
@@ -73,6 +74,7 @@ import { ref, computed } from 'vue'
 import { format, addHours, startOfDay, isToday as dateFnsIsToday } from 'date-fns'
 import type { CalendarEvent as ICalendarEvent } from '@/types/calendar'
 import CalendarEventComponent from './CalendarEvent.vue'
+import CalendarCell from './CalendarCell.vue'
 
 const props = defineProps<{
   currentDate: Date
@@ -154,41 +156,24 @@ function handleDragLeave() {
   isDragOver.value = null
 }
 
-function handleDrop(e: DragEvent, hour: number) {
-  e.preventDefault()
-  isDragOver.value = null
-  
-  const eventId = e.dataTransfer?.getData('text/plain')
-  if (eventId && draggedEvent.value) {
-    const newTime = `${hour.toString().padStart(2, '0')}:00`
-    emit('event-drop', draggedEvent.value, props.currentDate, hour)
-  }
-  
-  // Reset drag state
-  isDragging.value = false
-  draggedEvent.value = null
+function handleEventDrop(eventId: string, date: Date, time: string) {
+  if (!draggedEvent.value) return
+  emit('event-drop', draggedEvent.value, date, parseInt(time.split(':')[0]))
+}
+
+function handleDateClick(date: Date, hour?: number) {
+  const hourValue = hour ?? 0; // Default value if hour is undefined
+  emit('date-click', date, hourValue)
 }
 
 function isTimeSlotAvailable(hour: number): boolean {
-  // Get events for this hour
   const hourEvents = getEventsForHour(hour)
-  
-  // Consider a slot unavailable if it has more than 2 events
-  // You can adjust this logic based on your needs
   return hourEvents.length < 2
 }
 
 function hasTimeSlotConflict(hour: number): boolean {
-  // Get events for this hour
   const hourEvents = getEventsForHour(hour)
-  
-  // Check for overlapping events
-  if (hourEvents.length > 1) {
-    // Simple check: if there's more than one event in the hour
-    return true
-  }
-  
-  return false
+  return hourEvents.length > 1
 }
 </script>
 

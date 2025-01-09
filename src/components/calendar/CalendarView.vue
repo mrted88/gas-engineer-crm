@@ -235,21 +235,20 @@ async function handleEventSave(
   }
 }
 
-async function handleEventDrop(eventId: string, newDate: Date, newTime: string) {
+async function handleEventDrop(event: CalendarEvent, date: Date, hour: number) {
   try {
-    const event = eventsStore.getEventById(eventId)
-    if (!event) return
+    const newTime = `${hour.toString().padStart(2, '0')}:00`;
 
     const updateData: UpdateCalendarEvent = {
-      date: newDate,
+      date: date,
       time: newTime,
-      updatedAt: new Date().toISOString()
-    }
+      updatedAt: new Date().toISOString(),
+    };
 
-    await eventsStore.updateEvent(eventId, updateData)
-    await fetchEventsForCurrentView()
+    await eventsStore.updateEvent(event.id, updateData);
+    await fetchEventsForCurrentView();
   } catch (err) {
-    console.error('Error updating event:', err)
+    console.error('Error updating event:', err);
   }
 }
 

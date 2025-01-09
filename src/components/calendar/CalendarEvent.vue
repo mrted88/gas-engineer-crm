@@ -15,64 +15,75 @@
   </template>
   
   <script setup lang="ts">
-  import { computed } from 'vue'
-  import { format } from 'date-fns'
-  import type { CalendarEvent } from '@/types/event'
+  import { computed } from 'vue';
+  import { format, parse } from 'date-fns';
+  import type { CalendarEvent } from '@/types/event';
   
   interface Props {
-    event: CalendarEvent
-    isDragging?: boolean
+    event: CalendarEvent;
+    isDragging?: boolean;
   }
   
   const props = withDefaults(defineProps<Props>(), {
-    isDragging: false
-  })
+    isDragging: false,
+  });
   
   const emit = defineEmits<{
-    (e: 'click', event: CalendarEvent): void
-    (e: 'dragstart', event: DragEvent): void
-    (e: 'dragend'): void
-  }>()
+    (e: 'click', event: CalendarEvent): void;
+    (e: 'dragstart', event: DragEvent): void;
+    (e: 'dragend'): void;
+  }>();
   
-  const statusClass = computed(() => `status-${props.event.status}`)
+  const statusClass = computed(() => `status-${props.event.status}`);
   
   const formattedTime = computed(() => {
-    return format(new Date(`2000-01-01T${props.event.time}`), 'HH:mm')
-  })
+    try {
+      // Parse the time string into a Date object
+      const timeParts = props.event.time.split(':');
+      const date = new Date();
+      date.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0);
+  
+      // Format the time
+      return format(date, 'HH:mm');
+    } catch (error) {
+      console.error('Invalid time format:', props.event.time);
+      return 'Invalid time';
+    }
+  });
   
   const eventStyle = computed(() => {
     return {
-      backgroundColor: getEventColor(props.event.status)
-    }
-  })
+      backgroundColor: getEventColor(props.event.status),
+    };
+  });
   
   function getEventColor(status: string): string {
     switch (status) {
       case 'scheduled':
-        return 'var(--primary-500)'
+        return 'var(--primary-500)';
       case 'completed':
-        return 'var(--success-500)'
+        return 'var(--success-500)';
       case 'cancelled':
-        return 'var(--error-500)'
+        return 'var(--error-500)';
       default:
-        return 'var(--gray-500)'
+        return 'var(--gray-500)';
     }
   }
   
   function handleClick() {
-    emit('click', props.event)
+    emit('click', props.event);
   }
   
   function handleDragStart(e: DragEvent) {
     if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = 'move'
-      e.dataTransfer.setData('text/plain', props.event.id)
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', props.event.id);
     }
-    emit('dragstart', e)  // Changed to emit the DragEvent instead of CalendarEvent
+    emit('dragstart', e);
   }
   
   function handleDragEnd() {
-    emit('dragend')  // No longer passing the event
+    emit('dragend');
   }
   </script>
   

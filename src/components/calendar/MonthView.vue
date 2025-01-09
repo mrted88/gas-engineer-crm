@@ -7,16 +7,17 @@
 
     <!-- Calendar Days Grid -->
     <div class="days">
-      <div
+      <CalendarCell
         v-for="date in calendarDays"
         :key="format(date.date, 'yyyy-MM-dd')"
-        class="day"
+        :date="date.date"
         :class="{
           'other-month': !date.isCurrentMonth,
           'today': isToday(date.date),
           'has-events': hasEvents(date.date)
         }"
-        @click="$emit('date-click', date.date)"
+        @click="handleDateClick"
+        @drop="handleEventDrop"
       >
         <span class="day-number">{{ date.dayNumber }}</span>
         <div class="day-events">
@@ -35,7 +36,7 @@
             +{{ getEventsForDate(date.date).length - 3 }} more
           </div>
         </div>
-      </div>
+      </CalendarCell>
     </div>
   </div>
 </template>
@@ -54,6 +55,7 @@ import {
 } from 'date-fns'
 import type { CalendarEvent as ICalendarEvent } from '@/types/calendar'
 import CalendarEventComponent from './CalendarEvent.vue'
+import CalendarCell from './CalendarCell.vue' // Import the CalendarCell component
 
 const props = defineProps<{
   currentDate: Date
@@ -99,6 +101,14 @@ function getEventsForDate(date: Date): ICalendarEvent[] {
     // Sort by time
     return a.time.localeCompare(b.time)
   }).slice(0, 4) // Limit to 4 events per day
+}
+
+function handleDateClick(date: Date) {
+  emit('date-click', date)
+}
+
+function handleEventDrop(eventId: string, date: Date, time: string) {
+  // Handle the event drop logic here
 }
 </script>
 

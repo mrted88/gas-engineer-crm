@@ -29,18 +29,18 @@
           v-for="day in weekDays" 
           :key="format(day.date, 'yyyy-MM-dd')"
           class="day-column"
-          @dragover.prevent
-          @drop="(e) => handleDrop(e, day.date)"
         >
-          <div 
-            v-for="hour in hours" 
+          <CalendarCell
+            v-for="hour in hours"
             :key="hour"
-            class="hour-slot"
+            :date="day.date"
+            :hour="hour"
             :class="{
               'unavailable': !isTimeSlotAvailable(day.date, hour),
               'has-conflict': hasTimeSlotConflict(day.date, hour)
             }"
-            @click="$emit('date-click', day.date, hour)"
+            @click="handleDateClick"
+            @drop="handleEventDrop"
           >
             <CalendarEventComponent
               v-for="event in getEventsForDateAndHour(day.date, hour)"
@@ -51,7 +51,7 @@
               @dragstart="handleDragStart($event, event)"
               @dragend="handleDragEnd"
             />
-          </div>
+          </CalendarCell>
         </div>
       </div>
     </div>
@@ -59,102 +59,101 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { format, addHours, startOfDay, startOfWeek, addDays, isToday as dateFnsIsToday } from 'date-fns'
-import type { CalendarEvent as ICalendarEvent } from '@/types/calendar'
-import CalendarEventComponent from './CalendarEvent.vue'
+import { ref, computed } from 'vue';
+import { format, addHours, startOfDay, startOfWeek, addDays, isToday as dateFnsIsToday } from 'date-fns';
+import type { CalendarEvent as ICalendarEvent } from '@/types/calendar';
+import CalendarEventComponent from './CalendarEvent.vue';
+import CalendarCell from './CalendarCell.vue';
 
 const props = defineProps<{
-  currentDate: Date
-  events: ICalendarEvent[]
-  isLoading: boolean
-}>()
+  currentDate: Date;
+  events: ICalendarEvent[];
+  isLoading: boolean;
+}>();
 
 const emit = defineEmits<{
-  'event-click': [event: ICalendarEvent]
-  'date-click': [date: Date, hour: number]
-  'event-drop': [event: ICalendarEvent, date: Date, hour: number]
-}>()
+  'event-click': [event: ICalendarEvent];
+  'date-click': [date: Date, hour: number];
+  'event-drop': [event: ICalendarEvent, date: Date, hour: number];
+}>();
 
 // State
-const isDragging = ref(false)
-const draggedEvent = ref<ICalendarEvent | null>(null)
+const isDragging = ref(false);
+const draggedEvent = ref<ICalendarEvent | null>(null);
 
 // Constants
-const hours = Array.from({ length: 12 }, (_, i) => i + 8) // 8 AM to 7 PM
+const hours = Array.from({ length: 12 }, (_, i) => i + 8); // 8 AM to 7 PM
 
 // Computed
 const weekDays = computed(() => {
-  const start = startOfWeek(props.currentDate)
+  const start = startOfWeek(props.currentDate);
   return Array.from({ length: 7 }, (_, i) => {
-    const date = addDays(start, i)
+    const date = addDays(start, i);
     return {
       date,
       dayName: format(date, 'EEE'),
-      dayNumber: format(date, 'd')
-    }
-  })
-})
+      dayNumber: format(date, 'd'),
+    };
+  });
+});
 
 // Methods
 function formatHour(hour: number): string {
-  return format(addHours(startOfDay(new Date()), hour), 'h a')
+  return format(addHours(startOfDay(new Date()), hour), 'h a');
 }
 
 function isToday(date: Date): boolean {
-  return dateFnsIsToday(date)
+  return dateFnsIsToday(date);
 }
 
 function isTimeSlotAvailable(date: Date, hour: number): boolean {
-  // Implement your availability logic here
-  // For example, check business hours, holidays, etc.
-  return true
+  return true;
 }
 
 function hasTimeSlotConflict(date: Date, hour: number): boolean {
-  // Implement your conflict checking logic here
-  // For example, check overlapping appointments
-  const eventsInSlot = getEventsForDateAndHour(date, hour)
-  return eventsInSlot.length > 0
+  const eventsInSlot = getEventsForDateAndHour(date, hour);
+  return eventsInSlot.length > 0;
 }
 
 function getEventsForDateAndHour(date: Date, hour: number): ICalendarEvent[] {
   return props.events.filter(event => {
-    const eventDate = new Date(event.date)
-    const eventHour = parseInt(event.time.split(':')[0])
-    return eventDate.getDate() === date.getDate() && 
-           eventDate.getMonth() === date.getMonth() && 
-           eventDate.getFullYear() === date.getFullYear() && 
-           eventHour === hour
-  })
+    const eventDate = new Date(event.date);
+    const eventHour = parseInt(event.time.split(':')[0]);
+    return (
+      eventDate.getDate() === date.getDate() &&
+      eventDate.getMonth() === date.getMonth() &&
+      eventDate.getFullYear() === date.getFullYear() &&
+      eventHour === hour
+    );
+  });
 }
 
 function handleDragStart(e: DragEvent, event: ICalendarEvent) {
   if (e.dataTransfer) {
-    e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData('text/plain', event.id)
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', event.id);
   }
-  isDragging.value = true
-  draggedEvent.value = event
+  isDragging.value = true;
+  draggedEvent.value = event;
 }
 
 function handleDragEnd() {
-  isDragging.value = false
-  draggedEvent.value = null
+  isDragging.value = false;
+  draggedEvent.value = null;
 }
 
-function handleDrop(e: DragEvent, date: Date) {
-  e.preventDefault()
-  const eventId = e.dataTransfer?.getData('text/plain')
-  if (!eventId || !draggedEvent.value) return
+function handleDateClick(date: Date, hour?: number) {
+  const hourValue = hour ?? 0; // Default value if hour is undefined
+  emit('date-click', date, hourValue);
+}
 
-  const hour = new Date().getHours()
-  emit('event-drop', draggedEvent.value, date, hour)
+function handleEventDrop(eventId: string, date: Date, time: string) {
+  if (!draggedEvent.value) return;
+  emit('event-drop', draggedEvent.value, date, parseInt(time.split(':')[0]));
 }
 </script>
 
 <style scoped>
-/* Week View Container */
 .week-view-container {
   display: flex;
   flex: 1;
@@ -163,7 +162,6 @@ function handleDrop(e: DragEvent, date: Date) {
   border-radius: var(--radius-md);
 }
 
-/* Time Column */
 .time-column {
   width: 60px;
   flex-shrink: 0;
@@ -181,7 +179,6 @@ function handleDrop(e: DragEvent, date: Date) {
   border-bottom: 1px solid var(--border-color);
 }
 
-/* Week Content */
 .week-content {
   flex: 1;
   display: flex;
@@ -189,7 +186,6 @@ function handleDrop(e: DragEvent, date: Date) {
   overflow: hidden;
 }
 
-/* Week Header */
 .week-header {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -222,7 +218,6 @@ function handleDrop(e: DragEvent, date: Date) {
   font-weight: 600;
 }
 
-/* Week Body */
 .week-body {
   flex: 1;
   display: grid;
@@ -241,7 +236,6 @@ function handleDrop(e: DragEvent, date: Date) {
   border-right: none;
 }
 
-/* Hour Slots */
 .hour-slot {
   height: 60px;
   border-bottom: 1px solid var(--border-color);
@@ -262,7 +256,6 @@ function handleDrop(e: DragEvent, date: Date) {
   background-color: var(--error-50);
 }
 
-/* Responsive Styles */
 @media (max-width: 768px) {
   .week-day-header {
     padding: var(--space-1);
@@ -300,7 +293,6 @@ function handleDrop(e: DragEvent, date: Date) {
   }
 }
 
-/* Dark Mode Support */
 @media (prefers-color-scheme: dark) {
   .hour-slot:hover {
     background-color: var(--surface-3);
