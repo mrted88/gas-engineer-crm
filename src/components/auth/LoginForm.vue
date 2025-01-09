@@ -65,11 +65,9 @@ async function handleSubmit(): Promise<void> {
   try {
     const response = await api.auth.login(formData.email, formData.password)
     
-    // Store the token
-    localStorage.setItem('token', response.token)
-    
     // Update auth store
-    await authStore.setUser(response.user)
+    authStore.setToken(response.token)
+    authStore.setCurrentUser(response.user)
     
     // Redirect to dashboard or saved path
     const redirectPath = localStorage.getItem('redirectPath') || '/'

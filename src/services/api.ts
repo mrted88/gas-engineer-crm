@@ -6,6 +6,7 @@ import type {
   EventSearchParams,
   TimeSlot,
   EventConflict,
+  TimeSlotConflict,
   EventRecurrence,
   RecurringEvent,
   UpdateCalendarEvent
@@ -70,6 +71,16 @@ interface EventsApi {
   updateStatus(id: string, status: EventStatus): Promise<{ id: string; status: EventStatus }>
   get(id: string): Promise<CalendarEvent>
   search(params: EventSearchParams): Promise<CalendarEvent[]>
+}
+
+interface TimeSlotApi {
+  getAvailable(date: string): Promise<TimeSlot[]>
+  checkConflicts(
+    date: string, 
+    time: string, 
+    duration: number, 
+    excludeEventId?: string
+  ): Promise<TimeSlotConflict[]>
 }
 
 // Mock customers for development
@@ -328,10 +339,86 @@ export const api = {
         if (params.customerId && event.customerId !== params.customerId) return false
         if (params.startDate && new Date(event.date) < new Date(params.startDate)) return false
         if (params.endDate && new Date(event.date) > new Date(params.endDate)) return false
+        if (params.time && event.time !== params.time) return false
         return true
       })
     }
   } as EventsApi,
+
+  timeSlots: {
+    async getAvailable(date: string): Promise<TimeSlot[]> {
+      // Generate time slots from 8 AM to 6 PM in 15-minute increments
+      const slots: TimeSlot[] = []
+      const start = 8 // 8 AM
+      const end = 18 // 6 PM
+      
+      for (let hour = start; hour < end; hour++) {
+        for (let minute = 0; minute < 60; minute += 15) {
+          const formattedHour = hour.toString().padStart(2, '0')
+          const formattedMinute = minute.toString().padStart(2, '0')
+          const timeStart = `${formattedHour}:${formattedMinute}`
+          
+          // Check if there are any conflicting events
+          const conflicts = await api.events.search({
+            startDate: date,
+            endDate: date,
+            time: timeStart
+          })
+
+          slots.push({
+            start: timeStart,
+            end: timeStart, // You might want to calculate end based on duration
+            available: conflicts.length === 0
+          })
+        }
+      }
+      
+      return slots
+    },
+
+    async checkConflicts(
+      date: string,
+      time: string,
+      duration: number,
+      excludeEventId?: string
+    ): Promise<TimeSlotConflict[]> {
+      // Get all events for the date
+      const events = await api.events.search({
+        startDate: date,
+        endDate: date
+      })
+
+      // Filter out the excluded event if provided
+      const otherEvents = excludeEventId 
+        ? events.filter(e => e.id !== excludeEventId)
+        : events
+
+      // Check for conflicts
+      const conflicts: TimeSlotConflict[] = []
+      const proposedStart = new Date(`${date}T${time}`)
+      const proposedEnd = new Date(proposedStart.getTime() + duration * 60000)
+
+      for (const event of otherEvents) {
+        const eventStart = new Date(`${date}T${event.time}`)
+        const eventEnd = new Date(eventStart.getTime() + event.duration * 60000)
+
+        if (
+          (proposedStart >= eventStart && proposedStart < eventEnd) ||
+          (proposedEnd > eventStart && proposedEnd <= eventEnd) ||
+          (proposedStart <= eventStart && proposedEnd >= eventEnd)
+        ) {
+          conflicts.push({
+            eventId: event.id,
+            title: event.title,
+            time: event.time,
+            duration: event.duration
+          })
+        }
+      }
+
+      return conflicts
+    }
+  } as TimeSlotApi,
 
   customers: {
     async list() {

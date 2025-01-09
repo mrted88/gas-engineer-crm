@@ -80,6 +80,7 @@ export interface EventSearchParams {
   customerId?: string
   startDate?: string
   endDate?: string
+  time?: string // Added this
 }
 
 // Availability and conflict types
@@ -87,6 +88,13 @@ export interface TimeSlot {
   start: string
   end: string
   available: boolean
+}
+
+export interface TimeSlotConflict {
+  eventId: string
+  title: string
+  time: string
+  duration: number
 }
 
 export interface EventConflict {

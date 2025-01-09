@@ -46,6 +46,7 @@
         :is-loading="isLoading"
         @date-click="openNewEventModal"
         @event-click="openEventDetails"
+        @event-drop="handleEventDrop"
       />
 
       <MonthView
@@ -55,6 +56,7 @@
         :is-loading="isLoading"
         @date-click="openNewEventModal"
         @event-click="openEventDetails"
+        @event-drop="handleEventDrop"
       />
 
       <DayView
@@ -64,6 +66,7 @@
         :is-loading="isLoading"
         @date-click="openNewEventModal"
         @event-click="openEventDetails"
+        @event-drop="handleEventDrop"
       />
 
       <AgendaView
@@ -101,7 +104,18 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { format, addMonths, subMonths, startOfMonth, endOfMonth } from 'date-fns'
+import { 
+  format, 
+  addMonths, 
+  subMonths, 
+  startOfMonth, 
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  startOfDay,
+  endOfDay,
+  parseISO 
+} from 'date-fns'
 import { useEventsStore } from '@/stores/events'
 import type { 
   CalendarEvent, 
@@ -135,6 +149,7 @@ const isDeleting = ref(false)
 const hasTimeConflict = ref(false)
 const customers = ref(await api.customers.list())
 const availableTimeSlots = ref<TimeSlot[]>([])
+const draggedEvent = ref<CalendarEvent | null>(null)
 
 // Constants
 const views: CalendarViewType[] = ['month', 'week', 'day', 'agenda']
@@ -160,10 +175,21 @@ function handleNavigation(direction: 'previous' | 'next') {
   } else {
     currentDate.value = addMonths(currentDate.value, 1)
   }
+  fetchEventsForCurrentView()
 }
 
 function openNewEventModal(date: Date, hour?: number) {
   selectedEvent.value = null
+  const time = hour ? `${hour.toString().padStart(2, '0')}:00` : ''
+  const defaultEventData: NewCalendarEvent = {
+    title: '',
+    date: date,
+    time: time,
+    duration: 60,
+    customerId: '',
+    notes: '',
+    status: 'scheduled'
+  }
   showEventModal.value = true
 }
 
@@ -184,8 +210,7 @@ async function handleEventSave(
   try {
     isSubmitting.value = true
     if (selectedEvent.value) {
-      // Create a type-safe update object
-      const updateData = {
+      const updateData: UpdateCalendarEvent = {
         title: eventData.title,
         date: eventData.date,
         time: eventData.time,
@@ -202,10 +227,29 @@ async function handleEventSave(
       await eventsStore.createEvent(eventData)
     }
     closeEventModal()
+    await fetchEventsForCurrentView()
   } catch (err) {
     console.error('Error saving event:', err)
   } finally {
     isSubmitting.value = false
+  }
+}
+
+async function handleEventDrop(eventId: string, newDate: Date, newTime: string) {
+  try {
+    const event = eventsStore.getEventById(eventId)
+    if (!event) return
+
+    const updateData: UpdateCalendarEvent = {
+      date: newDate,
+      time: newTime,
+      updatedAt: new Date().toISOString()
+    }
+
+    await eventsStore.updateEvent(eventId, updateData)
+    await fetchEventsForCurrentView()
+  } catch (err) {
+    console.error('Error updating event:', err)
   }
 }
 
@@ -231,6 +275,7 @@ async function confirmDelete(option: 'single' | 'future' | 'all') {
     }
     closeDeleteModal()
     closeEventModal()
+    await fetchEventsForCurrentView()
   } catch (err) {
     console.error('Error deleting event:', err)
   } finally {
@@ -239,17 +284,47 @@ async function confirmDelete(option: 'single' | 'future' | 'all') {
 }
 
 async function fetchEventsForCurrentView() {
-  const start = startOfMonth(currentDate.value).toISOString()
-  const end = endOfMonth(currentDate.value).toISOString()
-  
-  await eventsStore.fetchEvents({ start, end })
+  let start: Date
+  let end: Date
+
+  switch (currentView.value) {
+    case 'month':
+      start = startOfMonth(currentDate.value)
+      end = endOfMonth(currentDate.value)
+      break
+    case 'week':
+      start = startOfWeek(currentDate.value)
+      end = endOfWeek(currentDate.value)
+      break
+    case 'day':
+      start = startOfDay(currentDate.value)
+      end = endOfDay(currentDate.value)
+      break
+    default:
+      start = startOfMonth(currentDate.value)
+      end = endOfMonth(currentDate.value)
+  }
+
+  await eventsStore.fetchEvents({
+    start: start.toISOString(),
+    end: end.toISOString()
+  })
 }
 
 // Lifecycle
 onMounted(fetchEventsForCurrentView)
 
 // Watchers
-watch([currentDate, currentView], fetchEventsForCurrentView)
+watch(
+  [currentDate, currentView],
+  async ([newDate, newView], [oldDate, oldView]) => {
+    if (newView !== oldView || 
+        format(newDate, 'yyyy-MM') !== format(oldDate || new Date(), 'yyyy-MM')) {
+      await fetchEventsForCurrentView()
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>
@@ -308,6 +383,11 @@ watch([currentDate, currentView], fetchEventsForCurrentView)
   transform: translateY(0);
 }
 
+.calendar-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
 /* Loading States */
 .loading-state,
 .error-state {
@@ -338,6 +418,17 @@ watch([currentDate, currentView], fetchEventsForCurrentView)
   flex: 1;
   overflow: hidden;
   position: relative;
+}
+
+/* Drag and Drop Styles */
+.calendar-cell.drag-over {
+  background-color: var(--primary-50);
+  border: 2px dashed var(--primary-blue);
+}
+
+.calendar-event.is-dragging {
+  opacity: 0.5;
+  cursor: grabbing;
 }
 
 /* Responsive Styles */
@@ -373,6 +464,19 @@ watch([currentDate, currentView], fetchEventsForCurrentView)
   .calendar-actions {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .nav-button {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .calendar-cell.drag-over {
+    background-color: var(--primary-900);
+    border-color: var(--primary-500);
   }
 }
 </style>

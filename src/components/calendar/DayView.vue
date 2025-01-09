@@ -24,9 +24,13 @@
           class="hour-slot"
           :class="{
             'unavailable': !isTimeSlotAvailable(hour),
-            'has-conflict': hasTimeSlotConflict(hour)
+            'has-conflict': hasTimeSlotConflict(hour),
+            'drag-over': isDragOver === hour
           }"
           @click="$emit('date-click', currentDate, hour)"
+          @dragover.prevent="handleDragOver(hour)"
+          @dragleave="handleDragLeave"
+          @drop="(e: DragEvent) => handleDrop(e, hour)"
         >
           <CalendarEventComponent
             v-for="event in getEventsForHour(hour)"
@@ -34,8 +38,9 @@
             :event="event"
             :is-dragging="isDragging && draggedEvent?.id === event.id"
             @click.stop="$emit('event-click', event)"
-            @dragstart="handleDragStart($event, event)"
+            @dragstart="(e: DragEvent) => handleDragStart(e, event)"
             @dragend="handleDragEnd"
+            draggable="true"
           />
         </div>
       </div>
@@ -84,6 +89,7 @@ const emit = defineEmits<{
 // State
 const isDragging = ref(false)
 const draggedEvent = ref<ICalendarEvent | null>(null)
+const isDragOver = ref<number | null>(null)
 
 // Constants
 const hours = Array.from({ length: 12 }, (_, i) => i + 8) // 8 AM to 7 PM
@@ -137,15 +143,51 @@ function handleDragStart(e: DragEvent, event: ICalendarEvent) {
 function handleDragEnd() {
   isDragging.value = false
   draggedEvent.value = null
+  isDragOver.value = null
+}
+
+function handleDragOver(hour: number) {
+  isDragOver.value = hour
+}
+
+function handleDragLeave() {
+  isDragOver.value = null
+}
+
+function handleDrop(e: DragEvent, hour: number) {
+  e.preventDefault()
+  isDragOver.value = null
+  
+  const eventId = e.dataTransfer?.getData('text/plain')
+  if (eventId && draggedEvent.value) {
+    const newTime = `${hour.toString().padStart(2, '0')}:00`
+    emit('event-drop', draggedEvent.value, props.currentDate, hour)
+  }
+  
+  // Reset drag state
+  isDragging.value = false
+  draggedEvent.value = null
 }
 
 function isTimeSlotAvailable(hour: number): boolean {
-  // Implement your availability logic here
-  return true
+  // Get events for this hour
+  const hourEvents = getEventsForHour(hour)
+  
+  // Consider a slot unavailable if it has more than 2 events
+  // You can adjust this logic based on your needs
+  return hourEvents.length < 2
 }
 
 function hasTimeSlotConflict(hour: number): boolean {
-  // Implement your conflict checking logic here
+  // Get events for this hour
+  const hourEvents = getEventsForHour(hour)
+  
+  // Check for overlapping events
+  if (hourEvents.length > 1) {
+    // Simple check: if there's more than one event in the hour
+    return true
+  }
+  
   return false
 }
 </script>
@@ -222,6 +264,18 @@ function hasTimeSlotConflict(hour: number): boolean {
 
 .hour-slot.has-conflict {
   background: var(--error-50);
+}
+
+.hour-slot.drag-over {
+  background: var(--primary-50);
+  border: 2px dashed var(--primary-blue);
+}
+
+@media (prefers-color-scheme: dark) {
+  .hour-slot.drag-over {
+    background: var(--primary-900);
+    border-color: var(--primary-500);
+  }
 }
 
 .day-side-panel {

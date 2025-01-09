@@ -30,8 +30,8 @@
   
   const emit = defineEmits<{
     (e: 'click', event: CalendarEvent): void
-    (e: 'dragstart', event: CalendarEvent): void
-    (e: 'dragend', event: CalendarEvent): void
+    (e: 'dragstart', event: DragEvent): void
+    (e: 'dragend'): void
   }>()
   
   const statusClass = computed(() => `status-${props.event.status}`)
@@ -68,11 +68,11 @@
       e.dataTransfer.effectAllowed = 'move'
       e.dataTransfer.setData('text/plain', props.event.id)
     }
-    emit('dragstart', props.event)
+    emit('dragstart', e)  // Changed to emit the DragEvent instead of CalendarEvent
   }
   
   function handleDragEnd() {
-    emit('dragend', props.event)
+    emit('dragend')  // No longer passing the event
   }
   </script>
   
