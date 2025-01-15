@@ -409,77 +409,175 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* Existing styles */
 .customer-detail {
-  padding: var(--space-4);
+  padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
+  background-color: #f4f4f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* ... (previous styles remain the same) ... */
-
-/* New styles for status badge */
-.status-badge {
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  text-transform: capitalize;
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 10px 15px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
-.status-badge.active {
-  background-color: var(--success-100);
-  color: var(--success-700);
+.back-button:hover {
+  background-color: #0056b3;
 }
 
-.status-badge.inactive {
-  background-color: var(--error-100);
-  color: var(--error-700);
+.customer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
 }
 
-/* Actions Dropdown */
-.actions-dropdown {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: var(--surface-1);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  min-width: 200px;
-  z-index: 10;
-}
-
-.actions-dropdown button {
-  width: 100%;
-  text-align: left;
-  padding: var(--space-2) var(--space-3);
+.customer-info {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+}
+
+.customer-avatar {
+  width: 50px;
+  height: 50px;
+  background-color: #007bff;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2em;
+  margin-right: 15px;
+}
+
+.customer-main-info h1 {
+  margin: 0;
+  font-size: 1.5em;
+  color: #333;
+}
+
+.customer-meta {
+  display: flex;
+  gap: 10px;
+  font-size: 0.9em;
+  color: #666;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  padding: 10px 15px;
   border: none;
-  background: none;
-  color: var(--text-1);
+  border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s;
 }
 
-.actions-dropdown button:hover {
-  background-color: var(--surface-2);
+.btn-primary {
+  background-color: #007bff;
+  color: white;
 }
 
-.actions-dropdown button.delete {
-  color: var(--error-600);
+.btn-primary:hover {
+  background-color: #0056b3;
 }
 
-.actions-dropdown button.delete:hover {
-  background-color: var(--error-50);
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
 }
 
-/* Stats Grid */
+.btn-secondary:hover {
+  background-color: #5a6268;
+}
+
+.customer-tabs {
+  margin-top: 20px;
+}
+
+.tabs-header {
+  display: flex;
+  border-bottom: 2px solid #ddd;
+  margin-bottom: 20px;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-bottom: 2px solid transparent;
+}
+
+.tab-button.active {
+  background-color: #007bff;
+  color: white;
+  border-bottom-color: #007bff;
+}
+
+.tab-button:hover {
+  background-color: #e9ecef;
+}
+
+.tab-content {
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.info-card {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.info-card h3 {
+  margin-bottom: 10px;
+  font-size: 1.1em;
+  color: #333;
+}
+
+.info-list {
+  list-style: none;
+  padding: 0;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.info-item i {
+  margin-right: 10px;
+  color: #007bff;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-4);
+  gap: 20px;
 }
 
 .stat-item {
@@ -487,31 +585,115 @@ onMounted(async () => {
 }
 
 .stat-value {
-  font-size: var(--font-size-xl);
-  font-weight: 600;
-  color: var(--primary-600);
-  display: block;
+  font-size: 1.5em;
+  font-weight: bold;
+  color: #007bff;
 }
 
 .stat-label {
-  font-size: var(--font-size-sm);
-  color: var(--text-2);
-  margin-top: var(--space-1);
-  display: block;
+  font-size: 0.9em;
+  color: #555;
 }
 
-/* Dark mode adjustments */
-@media (prefers-color-scheme: dark) {
-  .actions-dropdown {
-    background: var(--surface-2);
-  }
+.notes-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-  .actions-dropdown button:hover {
-    background-color: var(--surface-3);
-  }
+.no-notes {
+  color: #999;
+  font-style: italic;
+}
 
-  .stat-value {
-    color: var(--primary-400);
-  }
+.jobs-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.job-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  padding: 15px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.job-marker {
+  width: 10px;
+  height: 10px;
+  background-color: #007bff;
+  border-radius: 50%;
+  margin-top: 5px;
+}
+
+.job-content {
+  flex: 1;
+}
+
+.job-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.job-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9em;
+  color: #666;
+}
+
+.documents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.document-card {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.doc-icon {
+  font-size: 2em;
+  color: #007bff;
+  margin-bottom: 10px;
+}
+
+.doc-info h4 {
+  margin: 0;
+  font-size: 1em;
+  color: #333;
+}
+
+.doc-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.doc-actions button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.doc-actions button:hover {
+  background-color: #0056b3;
 }
 </style>

@@ -79,7 +79,7 @@
         </div>
         
         <div class="customer-actions">
-          <button class="btn btn-secondary" @click="viewCustomer(customer)">
+          <button class="btn btn-secondary" @click="handleCustomerClick(customer.id)">
             View Details
           </button>
           <button class="btn btn-primary" @click="scheduleJob(customer)">
@@ -191,38 +191,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import Modal from '@/components/Modal.vue'
+import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import Modal from '@/components/Modal.vue';
+
+console.log('CustomersView component loaded');
 
 interface Customer {
-  id: number
-  name: string
-  email: string
-  phone: string
-  address: string
-  status: 'active' | 'inactive'
-  totalJobs: number
-  lastService: string
-  delay?: number
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  status: 'active' | 'inactive';
+  totalJobs: number;
+  lastService: string;
+  delay?: number;
 }
 
 interface FormData {
-  name: string
-  email: string
-  phone: string
-  address: string
-  status: 'active' | 'inactive'
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  status: 'active' | 'inactive';
 }
 
-const router = useRouter()
-const searchQuery = ref('')
-const filterStatus = ref('')
-const sortBy = ref('name')
-const showAddCustomer = ref(false)
-const showDeleteModal = ref(false)
-const activeMenu = ref<number | null>(null)
-const editingCustomer = ref<Customer | null>(null)
+const router = useRouter();
+const searchQuery = ref('');
+const filterStatus = ref('');
+const sortBy = ref('name');
+const showAddCustomer = ref(false);
+const showDeleteModal = ref(false);
+const activeMenu = ref<number | null>(null);
+const editingCustomer = ref<Customer | null>(null);
 
 const formData = ref<FormData>({
   name: '',
@@ -230,7 +232,7 @@ const formData = ref<FormData>({
   phone: '',
   address: '',
   status: 'active'
-})
+});
 
 // Sample data - replace with API call
 const customers = ref<Customer[]>([
@@ -245,90 +247,90 @@ const customers = ref<Customer[]>([
     lastService: '2023-12-01'
   },
   // Add more sample customers...
-])
+]);
 
 const filteredCustomers = computed(() => {
-  let result = [...customers.value]
+  let result = [...customers.value];
 
   // Apply search filter
   if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
+    const query = searchQuery.value.toLowerCase();
     result = result.filter(customer => 
       customer.name.toLowerCase().includes(query) ||
       customer.email.toLowerCase().includes(query) ||
       customer.phone.includes(query)
-    )
+    );
   }
 
   // Apply status filter
   if (filterStatus.value) {
-    result = result.filter(customer => customer.status === filterStatus.value)
+    result = result.filter(customer => customer.status === filterStatus.value);
   }
 
   // Apply sorting
   result.sort((a, b) => {
     switch (sortBy.value) {
       case 'name':
-        return a.name.localeCompare(b.name)
+        return a.name.localeCompare(b.name);
       case 'recent':
-        return new Date(b.lastService).getTime() - new Date(a.lastService).getTime()
+        return new Date(b.lastService).getTime() - new Date(a.lastService).getTime();
       case 'jobs':
-        return b.totalJobs - a.totalJobs
+        return b.totalJobs - a.totalJobs;
       default:
-        return 0
+        return 0;
     }
-  })
+  });
 
   // Add delay for animation
   return result.map((customer, index) => ({
     ...customer,
     delay: index * 100
-  }))
-})
+  }));
+});
 
 const getInitials = (name: string) => {
   return name
     .split(' ')
     .map(word => word[0])
     .join('')
-    .toUpperCase()
+    .toUpperCase();
 }
 
 const handleSearch = () => {
   // Implement debounced search if needed
 }
 
-const viewCustomer = (customer: Customer) => {
-  router.push(`/customers/${customer.id}`)
+const handleCustomerClick = (customerId: number) => {
+  router.push(`/dashboard/customers/${customerId}`);
 }
 
 const scheduleJob = (customer: Customer) => {
-  router.push(`/schedule-job?customerId=${customer.id}`)
+  router.push(`/schedule-job?customerId=${customer.id}`);
 }
 
 const editCustomer = (customer: Customer) => {
-  editingCustomer.value = customer
+  editingCustomer.value = customer;
   formData.value = {
     name: customer.name,
     email: customer.email,
     phone: customer.phone,
     address: customer.address,
     status: customer.status
-  }
-  showAddCustomer.value = true
-  closeMenu()
+  };
+  showAddCustomer.value = true;
+  closeMenu();
 }
 
 const handleSubmit = async () => {
   try {
     if (editingCustomer.value) {
       // Update existing customer
-      const index = customers.value.findIndex(c => c.id === editingCustomer.value?.id)
+      const index = customers.value.findIndex(c => c.id === editingCustomer.value?.id);
       if (index !== -1) {
         customers.value[index] = {
           ...customers.value[index],
           ...formData.value
-        }
+        };
       }
     } else {
       // Add new customer
@@ -337,13 +339,13 @@ const handleSubmit = async () => {
         ...formData.value,
         totalJobs: 0,
         lastService: 'Never'
-      })
+      });
     }
     
-    showAddCustomer.value = false
-    resetForm()
+    showAddCustomer.value = false;
+    resetForm();
   } catch (error) {
-    console.error('Error saving customer:', error)
+    console.error('Error saving customer:', error);
     // Handle error (show notification, etc.)
   }
 }
@@ -355,33 +357,33 @@ const resetForm = () => {
     phone: '',
     address: '',
     status: 'active'
-  }
-  editingCustomer.value = null
+  };
+  editingCustomer.value = null;
 }
 
 const toggleMenu = (customerId: number) => {
-  activeMenu.value = activeMenu.value === customerId ? null : customerId
+  activeMenu.value = activeMenu.value === customerId ? null : customerId;
 }
 
 const closeMenu = () => {
-  activeMenu.value = null
+  activeMenu.value = null;
 }
 
 const confirmDelete = (customer: Customer) => {
-  editingCustomer.value = customer
-  showDeleteModal.value = true
-  closeMenu()
+  editingCustomer.value = customer;
+  showDeleteModal.value = true;
+  closeMenu();
 }
 
 const deleteCustomer = async () => {
   try {
     if (editingCustomer.value) {
-      customers.value = customers.value.filter(c => c.id !== editingCustomer.value?.id)
+      customers.value = customers.value.filter(c => c.id !== editingCustomer.value?.id);
     }
-    showDeleteModal.value = false
-    editingCustomer.value = null
+    showDeleteModal.value = false;
+    editingCustomer.value = null;
   } catch (error) {
-    console.error('Error deleting customer:', error)
+    console.error('Error deleting customer:', error);
     // Handle error (show notification, etc.)
   }
 }
@@ -389,10 +391,10 @@ const deleteCustomer = async () => {
 const sendReminder = async (customer: Customer) => {
   try {
     // Implement reminder logic
-    console.log('Sending reminder to:', customer.email)
-    closeMenu()
+    console.log('Sending reminder to:', customer.email);
+    closeMenu();
   } catch (error) {
-    console.error('Error sending reminder:', error)
+    console.error('Error sending reminder:', error);
     // Handle error (show notification, etc.)
   }
 }

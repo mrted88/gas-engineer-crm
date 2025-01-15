@@ -1,12 +1,12 @@
 <template>
   <div class="page-container">
     <h1>Calendar</h1>
-    <CalendarView />
+    <CalendarComponent />
   </div>
 </template>
 
 <script setup lang="ts">
-import CalendarView from '@/components/calendar/CalendarView.vue'
+import CalendarComponent from '@/components/calendar/CalendarView.vue';
 </script>
 
 <style scoped>
