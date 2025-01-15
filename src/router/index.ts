@@ -27,7 +27,7 @@ const routes = [
     meta: { public: true }
   },
   {
-    path: '/register',
+    path: '/dashboard/register',
     name: 'register',
     component: RegisterView,
     meta: { public: true }
