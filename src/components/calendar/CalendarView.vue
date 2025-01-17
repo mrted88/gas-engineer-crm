@@ -149,7 +149,6 @@ const isDeleting = ref(false)
 const hasTimeConflict = ref(false)
 const customers = ref(await api.customers.list())
 const availableTimeSlots = ref<TimeSlot[]>([])
-const draggedEvent = ref<CalendarEvent | null>(null)
 
 // Constants
 const views: CalendarViewType[] = ['month', 'week', 'day', 'agenda']
@@ -330,7 +329,7 @@ watch(
 .calendar-container {
   background: var(--surface-1);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-1);
+  box-shadow: var(--shadow-md);
   padding: var(--space-4);
   height: calc(100vh - 12rem);
   display: flex;
@@ -360,7 +359,7 @@ watch(
 }
 
 .nav-button {
-  background-color: var(--primary-blue);
+  background-color: var(--primary-500);
   color: white;
   border: none;
   border-radius: var(--radius-md);
@@ -374,7 +373,7 @@ watch(
 }
 
 .nav-button:hover {
-  background-color: var(--primary-dark);
+  background-color: var(--primary-700);
   transform: translateY(-1px);
 }
 
@@ -385,6 +384,31 @@ watch(
 .calendar-actions {
   display: flex;
   gap: var(--space-2);
+}
+
+.btn {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.btn-primary {
+  background-color: var(--primary-500);
+  color: white;
+}
+
+.btn-secondary {
+  background-color: var(--gray-200);
+  color: var(--text-1);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-700);
+}
+
+.btn-secondary:hover {
+  background-color: var(--gray-300);
 }
 
 /* Loading States */
@@ -402,8 +426,8 @@ watch(
 .spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid var(--border-color);
-  border-top-color: var(--primary-blue);
+  border: 4px solid var(--gray-300);
+  border-top-color: var(--primary-500);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -417,12 +441,26 @@ watch(
   flex: 1;
   overflow: hidden;
   position: relative;
+  border-top: 1px solid var(--gray-300);
+}
+
+.calendar-cell {
+  border-right: 1px solid var(--gray-300);
+  border-bottom: 1px solid var(--gray-300);
+}
+
+.calendar-cell:last-child {
+  border-right: none;
+}
+
+.calendar-row:last-child .calendar-cell {
+  border-bottom: none;
 }
 
 /* Drag and Drop Styles */
 .calendar-cell.drag-over {
   background-color: var(--primary-50);
-  border: 2px dashed var(--primary-blue);
+  border: 2px dashed var(--primary-500);
 }
 
 .calendar-event.is-dragging {

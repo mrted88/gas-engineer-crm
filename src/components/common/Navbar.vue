@@ -6,14 +6,14 @@
     <div class="navbar-menu">
       <router-link to="/" class="nav-link" active-class="active">Home</router-link>
       <router-link to="/customers" class="nav-link" active-class="active">Customers</router-link>
-      <router-link to="/calendar" class="nav-link" active-class="active">Calendar</router-link>
+      <router-link to="/diary" class="nav-link" active-class="active">Calendar</router-link>
       <router-link to="/settings" class="nav-link" active-class="active">Settings</router-link>
     </div>
   </nav>
 </template>
 
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
+import { RouterLink } from 'vue-router';
 </script>
 
 <style scoped>

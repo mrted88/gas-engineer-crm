@@ -1,23 +1,26 @@
 <template>
   <div id="app" class="app-container">
-    <router-view v-slot="{ Component }">
-      <transition name="fade" mode="out-in">
-        <component :is="Component" />
-      </transition>
-    </router-view>
+    <DashboardLayout>
+      <router-view v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
+    </DashboardLayout>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+import { onMounted, computed } from 'vue';
+import { useAuthStore } from '@/stores/auth';
+import DashboardLayout from '@/layouts/DashboardLayout.vue';
 
-const authStore = useAuthStore()
-const isAuthenticated = computed(() => authStore.isAuthenticated)
+const authStore = useAuthStore();
+const isAuthenticated = computed(() => authStore.isAuthenticated);
 
 onMounted(() => {
-  authStore.init()
-})
+  authStore.init();
+});
 </script>
 
 <style>

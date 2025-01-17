@@ -3,43 +3,43 @@
     <nav class="sidebar-navigation">
       <ul class="nav-list">
         <li class="nav-item">
-          <router-link to="/dashboard/diary" class="nav-link">
+          <router-link to="/diary" class="nav-link">
             <span class="nav-icon">📅</span>
             <span class="nav-text">Diary</span>
           </router-link>
         </li>
         <li class="nav-item">
-          <router-link to="/dashboard/customers" class="nav-link">
+          <router-link to="/customers" class="nav-link">
             <span class="nav-icon">👥</span>
             <span class="nav-text">Customers</span>
           </router-link>
         </li>
         <li class="nav-item">
-          <router-link to="/dashboard/quotes" class="nav-link">
+          <router-link to="/quotes" class="nav-link">
             <span class="nav-icon">💬</span>
             <span class="nav-text">Quotes</span>
           </router-link>
         </li>
         <li class="nav-item">
-          <router-link to="/dashboard/inventory" class="nav-link">
+          <router-link to="/inventory" class="nav-link">
             <span class="nav-icon">📦</span>
             <span class="nav-text">Inventory</span>
           </router-link>
         </li>
         <li class="nav-item">
-          <router-link to="/dashboard/reports" class="nav-link">
+          <router-link to="/reports" class="nav-link">
             <span class="nav-icon">📊</span>
             <span class="nav-text">Reports</span>
           </router-link>
         </li>
         <li class="nav-item">
-          <router-link to="/dashboard/accounts" class="nav-link">
+          <router-link to="/accounts" class="nav-link">
             <span class="nav-icon">💼</span>
             <span class="nav-text">Accounts</span>
           </router-link>
         </li>
         <li class="nav-item">
-          <router-link to="/dashboard/settings" class="nav-link">
+          <router-link to="/settings" class="nav-link">
             <span class="nav-icon">⚙️</span>
             <span class="nav-text">Settings</span>
           </router-link>
